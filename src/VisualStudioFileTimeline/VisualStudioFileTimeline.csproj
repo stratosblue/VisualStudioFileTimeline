@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+
+    <Version>0.0.1</Version>
+
+    <UseWPF>true</UseWPF>
+
+    <VssdkCompatibleExtension>true</VssdkCompatibleExtension>
+    <UseCodebase>true</UseCodebase>
+
+    <!--程序集必须强签名，否则VS不加载-->
+    <SignAssembly>True</SignAssembly>
+    <AssemblyOriginatorKeyFile>..\..\VisualStudioTimeline.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Page Remove="View\**\*.xaml" />
+    <None Remove="View\**\*.xaml" />
+    <EmbeddedResource Include="View\**\*.xaml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.VisualStudio.Extensibility.Sdk" Version="17.9.2092" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.VisualStudio.Extensibility.Build" Version="17.9.2092" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.VisualStudio.Shell.15.0" Version="17.9.37000" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VisualStudioFileTimeline.Core\VisualStudioFileTimeline.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="icon.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+  </ItemGroup>
+  
+  <Target Name="GetVsixAssemblyVersion" Returns="$(Version)" />
+</Project>

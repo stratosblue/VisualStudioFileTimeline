@@ -1,0 +1,15 @@
+<Project Sdk="MSTest.Sdk">
+
+  <PropertyGroup>
+    <!--Custom Properties-->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\VisualStudioFileTimeline.Core\VisualStudioFileTimeline.Core.csproj" />
+  </ItemGroup>
+
+</Project>

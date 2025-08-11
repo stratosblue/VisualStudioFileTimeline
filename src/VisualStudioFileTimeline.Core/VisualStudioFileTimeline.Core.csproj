@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+
+    <RootNamespace>VisualStudioFileTimeline</RootNamespace>
+
+    <UseCodebase>true</UseCodebase>
+    <SignAssembly>True</SignAssembly>
+    <AssemblyOriginatorKeyFile>..\..\VisualStudioTimeline.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BaseAnyEncoding" Version="1.0.3" />
+    <PackageReference Include="Cuture.Extensions.SystemTextJson.Dynamic" Version="1.1.2" />
+    <PackageReference Include="PropertyChanged.SourceGenerator" Version="1.1.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="System.IO.Hashing" Version="9.0.8" />
+  </ItemGroup>
+
+  <!--Resources-->
+  <ItemGroup>
+    <Compile Update="Resources\Resources.Designer.cs">
+      <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+    </Compile>
+
+    <EmbeddedResource Update="Resources\Resources.resx">
+      <CustomToolNamespace>VisualStudioFileTimeline</CustomToolNamespace>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <Generator>PublicResXFileCodeGenerator</Generator>
+      <AccessModifier>Public</AccessModifier>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

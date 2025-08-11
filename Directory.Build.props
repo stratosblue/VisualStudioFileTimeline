@@ -1,0 +1,13 @@
+﻿<Project>
+  <PropertyGroup>
+    <TargetFrameworks>net472</TargetFrameworks>
+
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+
+    <UseArtifactsOutput>true</UseArtifactsOutput>
+  </PropertyGroup>
+</Project>

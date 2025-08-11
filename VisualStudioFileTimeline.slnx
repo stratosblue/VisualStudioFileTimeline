@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/solution items/">
+    <File Path=".editorconfig" />
+    <File Path="CodeMaid.config" />
+    <File Path="Directory.Build.props" />
+    <File Path="global.json" />
+    <File Path="LICENSE.txt" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/VisualStudioFileTimeline/VisualStudioFileTimeline.csproj" />
+    <Project Path="src/VisualStudioFileTimeline.Core/VisualStudioFileTimeline.Core.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/VisualStudioFileTimeline.Test/VisualStudioFileTimeline.Test.csproj" />
+  </Folder>
+</Solution>

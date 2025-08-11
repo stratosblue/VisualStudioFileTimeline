@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
+  <Metadata>
+    <Identity Id="VisualStudioFileTimeline.ed87c08f-8e32-4b28-a29b-33e218354bdb" Version="|VisualStudioFileTimeline;GetVsixAssemblyVersion|" Language="en-US" Publisher="stratos" />
+    <DisplayName>VisualStudioFileTimeline - File Histories(Preview)</DisplayName>
+    <Description xml:space="preserve">`VisualStudio` file timeline feature extension, incorporating file local edit history functionality for quick review and version rollback</Description>
+    <MoreInfo>https://github.com/stratosblue/VisualStudioFileTimeline</MoreInfo>
+    <Icon>icon.png</Icon>
+    <PreviewImage>icon.png</PreviewImage>
+    <Tags>file, file histories, file timeline, timeline, edit histories, histories, history</Tags>
+    <Preview>true</Preview>
+  </Metadata>
+  <Installation ExtensionType="VSSDK+VisualStudio.Extensibility">
+    <InstallationTarget Version="[17.0,)" Id="Microsoft.VisualStudio.Community">
+      <ProductArchitecture>amd64</ProductArchitecture>
+    </InstallationTarget>
+    <InstallationTarget Version="[17.0,)" Id="Microsoft.VisualStudio.Community">
+      <ProductArchitecture>arm64</ProductArchitecture>
+    </InstallationTarget>
+  </Installation>
+  <Prerequisites>
+    <Prerequisite Id="Microsoft.VisualStudio.Component.CoreEditor" Version="[17.0,)" DisplayName="Visual Studio core editor" />
+  </Prerequisites>
+</PackageManifest>
