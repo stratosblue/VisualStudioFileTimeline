@@ -4,6 +4,10 @@
 
 `VisualStudio` 的文件时间线功能拓展，包含文件本地编辑记录功能，用于快速审阅和回退编辑版本。
 
+-------
+
+View at [VisualStudio Marketplace](https://marketplace.visualstudio.com/items?itemName=stratos.VisualStudioFileTimeline)
+
 ## Roadmap & TODO List
 - [ ] `VSCode Timeline`进一步兼容 (VSCode Timeline enhanced compatibility)
 - [ ] Git记录集成 (Git log integration)
