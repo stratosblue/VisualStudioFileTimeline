@@ -28,10 +28,17 @@
     </Grid.ColumnDefinitions>
 
     <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
       <RowDefinition />
     </Grid.RowDefinitions>
 
-    <ListView ItemsSource="{Binding Items, Mode=OneWay}"
+    <Border BorderThickness="1">
+      <TextBlock Text="{Binding FileName}"
+                 TextTrimming="CharacterEllipsis"
+                 TextWrapping="NoWrap" />
+    </Border>
+    <ListView Grid.Row="1"
+              ItemsSource="{Binding Items, Mode=OneWay}"
 		          SelectionMode="Single">
       <ListView.Resources>
         <Style TargetType="ScrollViewer">

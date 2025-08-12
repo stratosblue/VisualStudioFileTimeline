@@ -7,7 +7,6 @@ namespace VisualStudioFileTimeline.ViewModel;
 
 [DataContract]
 public class FileTimelineViewModel(FileTimelineManager fileTimelineManager,
-                                   TimelineToolWindowAccessor toolWindowAccessor,
                                    VisualStudioExtensibility extensibility)
     : NotifyPropertyChangedObject
 {
@@ -35,11 +34,6 @@ public class FileTimelineViewModel(FileTimelineManager fileTimelineManager,
         _currentResource = resource;
         var fileTimeline = await fileTimelineManager.GetFileTimelineAsync(resource, token);
         ToolWindowViewModel.SetCurrentFileTimeline(fileTimeline);
-
-        if (toolWindowAccessor.TimelineToolWindow is { } toolWindow)
-        {
-            toolWindow.SetCurrentFileName(fileTimeline.FileName);
-        }
     }
 
     public async Task ReloadCurrentFileAsync(CancellationToken token)

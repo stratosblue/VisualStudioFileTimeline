@@ -14,6 +14,8 @@ public class TimelineToolWindowViewModel : NotifyPropertyChangedObject
 
     private readonly VisualStudioExtensibility _extensibility;
 
+    private string? _fileName;
+
     private FileTimeline? _fileTimeline;
 
     private ObservableList<TimelineItemViewModel> _items = [];
@@ -21,6 +23,13 @@ public class TimelineToolWindowViewModel : NotifyPropertyChangedObject
     #endregion Private 字段
 
     #region Public 属性
+
+    [DataMember]
+    public string? FileName
+    {
+        get => _fileName;
+        set => SetProperty(ref _fileName, value);
+    }
 
     [DataMember]
     public ObservableList<TimelineItemViewModel> Items
@@ -124,6 +133,7 @@ public class TimelineToolWindowViewModel : NotifyPropertyChangedObject
     {
         _fileTimeline = fileTimeline;
         Items = new(fileTimeline.TimelineItems.Select(m => new TimelineItemViewModel(fileTimeline, m, this)));
+        FileName = fileTimeline.FileName;
     }
 
     public void UnselectedItem(TimelineItemViewModel unselected)

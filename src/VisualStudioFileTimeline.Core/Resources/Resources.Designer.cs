@@ -70,6 +70,15 @@ namespace VisualStudioFileTimeline {
         }
         
         /// <summary>
+        ///   查找类似 时间线 的本地化字符串。
+        /// </summary>
+        public static string Caption_ToolWindow {
+            get {
+                return ResourceManager.GetString("Caption_ToolWindow", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   查找类似 文件时间线 的本地化字符串。
         /// </summary>
         public static string GeneralTitle {

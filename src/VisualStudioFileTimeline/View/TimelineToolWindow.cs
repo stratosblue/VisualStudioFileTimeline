@@ -51,7 +51,7 @@ public class TimelineToolWindow : ToolWindow
     public TimelineToolWindow(VisualStudioExtensibility extensibility, FileTimelineViewModel fileTimelineViewModel, TimelineToolWindowAccessor toolWindowAccessor)
         : base(extensibility)
     {
-        Title = Resources.GeneralTitle;
+        Title = Resources.Caption_ToolWindow;
 
         _fileTimelineViewModel = fileTimelineViewModel;
         _content = new(fileTimelineViewModel.ToolWindowViewModel);

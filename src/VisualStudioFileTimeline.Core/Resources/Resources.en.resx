@@ -165,4 +165,7 @@
   <data name="MenuItem_Header_Delete" xml:space="preserve">
     <value>Delete</value>
   </data>
+  <data name="Caption_ToolWindow" xml:space="preserve">
+    <value>Timeline</value>
+  </data>
 </root>
