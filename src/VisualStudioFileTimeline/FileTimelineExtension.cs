@@ -41,8 +41,8 @@ public class FileTimelineExtension : Extension
 
         serviceCollection.TryAddSingleton<FileTimelineViewModel>();
         serviceCollection.TryAddSingleton<FileTimelineManager>();
-        serviceCollection.TryAddSingleton<DocumentEventsListener>();
         serviceCollection.TryAddSingleton<TimelineToolWindowAccessor>();
+        serviceCollection.TryAddSingleton<RunningDocTableEventsListener>();
 
         static void AddFileTimelineProvider<T>(IServiceCollection serviceCollection)
             where T : class, IFileTimelineProvider, IFileTimelineStore

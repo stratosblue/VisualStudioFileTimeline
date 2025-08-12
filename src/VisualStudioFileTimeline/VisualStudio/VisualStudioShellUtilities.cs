@@ -8,18 +8,18 @@ internal static class VisualStudioShellUtilities
     #region Public 方法
 
     /// <summary>
-    /// 检查文件 <paramref name="moniker"/> 是否为临时打开状态
+    /// 检查文件 <paramref name="moniker"/> 是否为未保存编辑状态
     /// </summary>
     /// <param name="moniker"></param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    public static async Task<bool?> IsProvisionalOpenedAsync(Uri moniker, CancellationToken cancellationToken = default)
+    public static async Task<bool> IsDocumentDirtyAsync(Uri moniker, CancellationToken cancellationToken)
     {
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
 
         var fullPath = moniker.AbsolutePath;
 
-        if (ServiceProvider.GlobalProvider.GetService(typeof(SVsUIShellOpenDocument)) is IVsUIShellOpenDocument vsUIShellOpenDocument)
+        if (TryGetVsUIShellOpenDocument(out var vsUIShellOpenDocument))
         {
             var logicalView = Guid.Empty;
             var hr = vsUIShellOpenDocument.IsDocumentOpen(pHierCaller: default,
@@ -33,13 +33,66 @@ internal static class VisualStudioShellUtilities
                                                           pfOpen: out var pfOpen);
             if (hr == 0
                 && pfOpen == 1
-                && windowFrame?.GetProperty((int)__VSFPROPID5.VSFPROPID_IsProvisional, out var isProvisionalValue) == 0)
+                && windowFrame.GetProperty((int)__VSFPROPID.VSFPROPID_DocData, out var docData) == 0
+                && docData is IVsPersistDocData vsPersistDocData
+                && vsPersistDocData.IsDocDataDirty(out var isDirty) == 0)
             {
-                return isProvisionalValue is true;
+                return isDirty != 0;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// 检查文件 <paramref name="moniker"/> 是否为临时打开状态
+    /// </summary>
+    /// <param name="moniker"></param>
+    /// <returns></returns>
+    public static bool? IsProvisionalOpened(string moniker)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+
+        if (TryGetVsUIShellOpenDocument(out var vsUIShellOpenDocument))
+        {
+            var logicalView = Guid.Empty;
+            var hr = vsUIShellOpenDocument.IsDocumentOpen(pHierCaller: default,
+                                                          itemidCaller: default,
+                                                          pszMkDocument: moniker,
+                                                          rguidLogicalView: ref logicalView,
+                                                          grfIDO: default,
+                                                          ppHierOpen: out var ppHierOpen,
+                                                          pitemidOpen: default,
+                                                          ppWindowFrame: out var windowFrame,
+                                                          pfOpen: out var pfOpen);
+            if (hr == 0
+                && pfOpen == 1
+                && windowFrame is not null)
+            {
+                return IsProvisionalOpened(windowFrame);
             }
         }
 
         return null;
+    }
+
+    public static bool IsProvisionalOpened(IVsWindowFrame windowFrame)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+        return windowFrame.GetProperty((int)__VSFPROPID5.VSFPROPID_IsProvisional, out var isProvisionalValue) == 0
+               && isProvisionalValue is true;
+    }
+
+    /// <summary>
+    /// 检查文件 <paramref name="moniker"/> 是否为临时打开状态
+    /// </summary>
+    /// <param name="moniker"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    public static async Task<bool?> IsProvisionalOpenedAsync(Uri moniker, CancellationToken cancellationToken = default)
+    {
+        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+
+        return IsProvisionalOpened(moniker.AbsolutePath);
     }
 
     public static async Task<IVsWindowFrame?> OpenProvisionalFileViewAsync(string filePath,
@@ -89,6 +142,17 @@ internal static class VisualStudioShellUtilities
     }
 
     #endregion Public 方法
+
+    #region Private 方法
+
+    private static bool TryGetVsUIShellOpenDocument(out IVsUIShellOpenDocument vsUIShellOpenDocument)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+        vsUIShellOpenDocument = (ServiceProvider.GlobalProvider.GetService(typeof(SVsUIShellOpenDocument)) as IVsUIShellOpenDocument)!; //472没有NotNullWhen
+        return vsUIShellOpenDocument is not null;
+    }
+
+    #endregion Private 方法
 
     #region Util from VsShellUtilities
 
