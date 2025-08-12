@@ -42,11 +42,11 @@ public class FileTimeline(Uri resource)
         return insertIndex;
     }
 
-    public bool DeleteItem(IFileTimelineItem item)
+    public async Task<bool> DeleteItemAsync(IFileTimelineItem item, CancellationToken cancellationToken)
     {
-        if (SortedTimelineItems.Remove(item))
+        if (await item.Provider.TryDropAsync(item, cancellationToken))
         {
-            File.Delete(item.FilePath);
+            SortedTimelineItems.Remove(item);
             return true;
         }
         return false;

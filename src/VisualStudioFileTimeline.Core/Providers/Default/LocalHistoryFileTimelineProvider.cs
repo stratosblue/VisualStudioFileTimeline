@@ -52,23 +52,12 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
     {
         var resource = descriptor.Resource;
         var sourceFile = resource.AbsolutePath;
-        var historyFolderPath = GetHistoryFolderPath(sourceFile);
-        DirectoryUtil.Ensure(historyFolderPath);
 
-        var entriesFilePath = GetMetadataFilePath(historyFolderPath);
-
-        using var stream = File.Open(entriesFilePath, FileMode.OpenOrCreate);
-
-        FileTimelineMetadata? metadata = null;
-
-        try
-        {
-            metadata = await JsonSerializer.DeserializeAsync<FileTimelineMetadata>(stream, JsonSerializerOptions.Default, cancellationToken);
-        }
-        catch { }
-
-        metadata ??= new(Version, sourceFile, []);
+        var metadataInfo = await GetMetadataInfoAsync(sourceFile, cancellationToken);
+        var metadata = metadataInfo.Metadata;
+        var historyFolderPath = metadataInfo.HistoryFolderPath;
         var currentTimestamp = descriptor.Time.ToUnixTimeMilliseconds();
+
         string historyFilePath;
 
         if (metadata.Entries.OrderByDescending(m => m.Value.Timestamp)
@@ -98,11 +87,7 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
         File.Copy(sourceFile, historyFilePath, true);
         File.SetCreationTimeUtc(historyFilePath, DateTimeOffset.FromUnixTimeMilliseconds(currentTimestamp).DateTime);
 
-        stream.SeekToBegin();
-        stream.SetLength(0);
-
-        await JsonSerializer.SerializeAsync(stream, metadata, JsonSerializerOptions.Default, CancellationToken.None);
-        await stream.FlushAsync(CancellationToken.None);
+        await SaveMetadataAsync(metadataInfo, CancellationToken.None);
 
         return new DefaultFileTimelineItem(Title: CreateFileTimelineItemTitleBySource(descriptor.Source),
                                            Description: null,
@@ -115,64 +100,74 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
     public async Task<IEnumerable<IFileTimelineItem>> GetAsync(Uri resource, CancellationToken cancellationToken = default)
     {
         var sourceFile = resource.AbsolutePath;
-        if (!TryOpenMetadataFileStream(sourceFile, out var historyFolderPath, out var metadataFileStream))
+
+        var metadataInfo = await GetMetadataInfoAsync(sourceFile, cancellationToken);
+        var metadata = metadataInfo.Metadata;
+        var historyFolderPath = metadataInfo.HistoryFolderPath;
+
+        //目录不存在，返回空
+        if (!Directory.Exists(historyFolderPath))
         {
-            //没有元数据文件
-            var allFiles = GetAllFiles(sourceFile, historyFolderPath);
-
-            if (allFiles.Count == 0)
-            {
-                return [];
-            }
-
-            DirectoryUtil.Ensure(historyFolderPath);
-
-            //创建新的
-            var entries = allFiles.ToDictionary(m => m.FullName, m => new FileTimelineMetadataEntryInfo(null) { Timestamp = m.CreationTime.ToUnixTimeMilliseconds() });
-            var metadata = new FileTimelineMetadata(Version, historyFolderPath, entries);
-
-            using var newMetadataFileStream = File.OpenWrite(GetMetadataFilePath(historyFolderPath));
-
-            await JsonSerializer.SerializeAsync(newMetadataFileStream, metadata, JsonSerializerOptions.Default, cancellationToken);
-
-            return allFiles.Select(m =>
-            {
-                return new DefaultFileTimelineItem(Title: CreateFileTimelineItemTitleBySource(null),
-                                                   Description: null,
-                                                   FilePath: m.FullName,
-                                                   Time: m.CreationTime,
-                                                   Provider: this);
-            });
+            return [];
         }
-        else
+
+        var allFiles = GetAllFiles(sourceFile, historyFolderPath);
+        if (allFiles.Count == 0)
         {
-            using var _ = metadataFileStream;
+            return [];
+        }
 
-            var allFiles = GetAllFiles(sourceFile, historyFolderPath);
-
-            if (allFiles.Count == 0)
+        var metadataMismatched = false;
+        var result = allFiles.Select(m =>
+        {
+            string? source = null;
+            DateTime? time = null;
+            if (!metadata.Entries.TryGetValue(Path.GetFileName(m.FullName), out var entryInfo))
             {
-                return [];
+                metadataMismatched = true;
+                time = m.CreationTime;
             }
-
-            var metadata = await JsonSerializer.DeserializeAsync<FileTimelineMetadata>(metadataFileStream!, JsonSerializerOptions.Default, cancellationToken);
-
-            return allFiles.Select(m =>
+            else
             {
-                string? title = null;
-                DateTime? time = null;
-                if (metadata?.Entries.TryGetValue(Path.GetFileName(m.FullName), out var entryInfo) == true)
+                source = entryInfo.Source;
+                time = DateTimeExtensions.FromUnixTimeMilliseconds(entryInfo.Timestamp);
+            }
+            return new DefaultFileTimelineItem(Title: CreateFileTimelineItemTitleBySource(source),
+                                               Description: null,
+                                               FilePath: m.FullName,
+                                               Time: time ?? m.CreationTime,
+                                               Provider: this);
+        }).ToList();
+
+        if (metadataMismatched
+            || result.Count != metadata.Entries.Count) //元数据不匹配，重新生成元数据
+        {
+            _ = Task.Run(async () =>
+            {
+                //移除多余的
+                foreach (var key in metadata.Entries.Keys.ToList())
                 {
-                    title = CreateFileTimelineItemTitleBySource(entryInfo.Source);
-                    time = DateTimeExtensions.FromUnixTimeMilliseconds(entryInfo.Timestamp);
+                    if (!result.Any(m => Path.GetFileName(m.FilePath) == key))
+                    {
+                        metadata.Entries.Remove(key);
+                    }
                 }
-                return new DefaultFileTimelineItem(Title: title ?? CreateFileTimelineItemTitleBySource(null),
-                                                   Description: null,
-                                                   FilePath: m.FullName,
-                                                   Time: time ?? m.CreationTime,
-                                                   Provider: this);
+
+                //添加缺少的
+                foreach (var item in result)
+                {
+                    var fileName = Path.GetFileName(item.FilePath);
+                    if (!metadata.Entries.ContainsKey(fileName))
+                    {
+                        metadata.Entries.Add(fileName, new(null) { Timestamp = item.Time.ToUnixTimeMilliseconds() });
+                    }
+                }
+
+                await SaveMetadataAsync(metadataInfo, CancellationToken.None);
             });
         }
+
+        return result;
 
         List<FileInfo> GetAllFiles(string sourceFile, string historyFolderPath)
         {
@@ -184,7 +179,38 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
         }
     }
 
+    /// <inheritdoc/>
     public override string ToString() => Name;
+
+    /// <inheritdoc/>
+    public async Task<bool> TryDropAsync(IFileTimelineItem item, CancellationToken cancellationToken = default)
+    {
+        if (item.Provider != this)
+        {
+            return false;
+        }
+
+        try
+        {
+            File.Delete(item.FilePath);
+        }
+        catch
+        {
+            if (File.Exists(item.FilePath))
+            {
+                return false;
+            }
+        }
+
+        var metadataInfo = await GetMetadataInfoAsync(item.FilePath, cancellationToken);
+
+        if (metadataInfo.Metadata.Entries.Remove(Path.GetFileName(item.FilePath)))
+        {
+            await SaveMetadataAsync(metadataInfo, CancellationToken.None);
+        }
+
+        return true;
+    }
 
     #endregion Public 方法
 
@@ -203,7 +229,7 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
                             .ToList();
     }
 
-    private string GetHistoryFolderPath(string path)
+    private string GetHistoryFolderPath(string path, out string identifier)
     {
         var pathMemory = ArrayPool<char>.Shared.Rent(path.Length);
         try
@@ -219,9 +245,9 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
                 Span<byte> buffer = stackalloc byte[sizeof(int)];
                 Crc32.Hash(span.Slice(0, length), buffer);
 
-                var historyFolderName = SequenceFileNameUtil.Create(buffer);
+                identifier = SequenceFileNameUtil.Create(buffer);
 
-                return Path.Combine(LocalHistoryPath, historyFolderName);
+                return Path.Combine(LocalHistoryPath, identifier);
             }
             finally
             {
@@ -234,26 +260,44 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
         }
     }
 
-    private bool TryOpenMetadataFileStream(string sourceFile,
-                                           out string historyFolderPath,
-                                           out FileStream? metadataFileStream)
+    private async Task<MetadataInfo> GetMetadataInfoAsync(string sourceFile, CancellationToken cancellationToken)
     {
-        historyFolderPath = GetHistoryFolderPath(sourceFile);
-        metadataFileStream = default;
-        if (!Directory.Exists(LocalHistoryPath))
+        var historyFolderPath = GetHistoryFolderPath(sourceFile, out var identifier);
+        var entriesFilePath = GetMetadataFilePath(historyFolderPath);
+        FileTimelineMetadata? metadata = null;
+
+        if (File.Exists(entriesFilePath))
         {
-            return false;
+            using var stream = File.Open(entriesFilePath, FileMode.Open);
+
+            try
+            {
+                metadata = await JsonSerializer.DeserializeAsync<FileTimelineMetadata>(stream, JsonSerializerOptions.Default, cancellationToken);
+            }
+            catch { }
         }
 
-        var metadataFilePath = GetMetadataFilePath(historyFolderPath);
+        metadata ??= new(Version, sourceFile, []);
 
-        if (!File.Exists(metadataFilePath))
-        {
-            return false;
-        }
-        metadataFileStream = File.OpenRead(metadataFilePath);
-        return true;
+        return new MetadataInfo(sourceFile, identifier, metadata, historyFolderPath);
+    }
+
+    private async Task SaveMetadataAsync(MetadataInfo metadataInfo, CancellationToken cancellationToken)
+    {
+        var historyFolderPath = metadataInfo.HistoryFolderPath;
+        DirectoryUtil.Ensure(historyFolderPath);
+        var entriesFilePath = GetMetadataFilePath(historyFolderPath);
+
+        using var stream = File.Open(entriesFilePath, FileMode.OpenOrCreate);
+
+        stream.SeekToBegin();
+        stream.SetLength(0);
+
+        await JsonSerializer.SerializeAsync(stream, metadataInfo.Metadata, JsonSerializerOptions.Default, cancellationToken);
+        await stream.FlushAsync(cancellationToken);
     }
 
     #endregion Private 方法
+
+    private record MetadataInfo(string SourceFile, string Identifier, FileTimelineMetadata Metadata, string HistoryFolderPath);
 }

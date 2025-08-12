@@ -51,16 +51,13 @@ public class TimelineToolWindowViewModel : NotifyPropertyChangedObject
 
     public TimelineToolWindowViewModel(VisualStudioExtensibility extensibility)
     {
-        DeleteCommand = new AsyncCommand((parameter, clientContext, token) =>
+        DeleteCommand = new AsyncCommand(async (parameter, clientContext, token) =>
         {
-            if (parameter is TimelineItemViewModel viewModel)
+            if (parameter is TimelineItemViewModel viewModel
+                && await viewModel.Timeline.DeleteItemAsync(viewModel.RawItem, token))
             {
-                if (viewModel.Timeline.DeleteItem(viewModel.RawItem))
-                {
-                    Items.Remove(viewModel);
-                }
+                Items.Remove(viewModel);
             }
-            return Task.CompletedTask;
         });
 
         OpenWithExplorerCommand = new AsyncCommand((parameter, clientContext, token) =>

@@ -175,6 +175,14 @@ public class VsCodeFileTimelineProvider : IFileTimelineProvider, IFileTimelineSt
         }
     }
 
+    /// <inheritdoc/>
+    public Task<bool> TryDropAsync(IFileTimelineItem item, CancellationToken cancellationToken = default)
+    {
+        //TODO 完成删除
+        return Task.FromResult(false);
+    }
+
+    /// <inheritdoc/>
     public override string ToString() => Name;
 
     #endregion Public 方法
