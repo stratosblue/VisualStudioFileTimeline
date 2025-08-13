@@ -58,6 +58,8 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
         var historyFolderPath = metadataInfo.HistoryFolderPath;
         var currentTimestamp = descriptor.Time.ToUnixTimeMilliseconds();
 
+        DirectoryUtil.Ensure(historyFolderPath);
+
         string historyFilePath;
 
         if (metadata.Entries.OrderByDescending(m => m.Value.Timestamp)

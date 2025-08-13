@@ -36,7 +36,7 @@ public class TimelineToolWindow : ToolWindow
     {
         Placement = ToolWindowPlacement.DocumentWell,
         DockDirection = Dock.Right,
-        AllowAutoCreation = true,
+        AllowAutoCreation = false,
         //Toolbar = new ToolWindowToolbar(Toolbar), //卡死，先关了
         VisibleWhen = ActivationConstraint.SolutionState(SolutionState.Exists),
     };
