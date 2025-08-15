@@ -1,12 +1,13 @@
 ﻿using System.Diagnostics;
-using System.Runtime.Serialization;
-using Microsoft.VisualStudio.Extensibility.UI;
+using System.Windows.Input;
 
 namespace VisualStudioFileTimeline.ViewModel;
 
-[DataContract]
 [DebuggerDisplay("{Description,nq} at {Time,nq} [{FilePath,nq}]")]
-public class TimelineItemViewModel(FileTimeline timeline, IFileTimelineItem timelineItem, TimelineToolWindowViewModel toolWindowViewModel) : NotifyPropertyChangedObject
+public class TimelineItemViewModel(FileTimeline timeline,
+                                   IFileTimelineItem timelineItem,
+                                   TimelineToolWindowViewModel toolWindowViewModel)
+    : NotifyPropertyChangedObject
 {
     #region Private 字段
 
@@ -22,13 +23,10 @@ public class TimelineItemViewModel(FileTimeline timeline, IFileTimelineItem time
 
     #region Display
 
-    [DataMember]
     public string? Description { get; } = timelineItem.Description;
 
-    [DataMember]
     public string FilePath { get; } = timelineItem.FilePath;
 
-    [DataMember]
     public bool IsSelected
     {
         get => _isSelected;
@@ -47,27 +45,21 @@ public class TimelineItemViewModel(FileTimeline timeline, IFileTimelineItem time
         }
     }
 
-    [DataMember]
     public DateTime Time { get; } = timelineItem.Time;
 
-    [DataMember]
     public string Title { get; } = timelineItem.Title;
 
     #endregion Display
 
     #region Commands
 
-    [DataMember]
-    public AsyncCommand DeleteCommand { get; } = toolWindowViewModel.DeleteCommand;
+    public ICommand DeleteCommand => toolWindowViewModel.DeleteCommand;
 
-    [DataMember]
-    public AsyncCommand OpenWithExplorerCommand { get; } = toolWindowViewModel.OpenWithExplorerCommand;
+    public ICommand OpenWithExplorerCommand => toolWindowViewModel.OpenWithExplorerCommand;
 
-    [DataMember]
-    public AsyncCommand RestoreContentCommand { get; } = toolWindowViewModel.RestoreContentCommand;
+    public ICommand RestoreContentCommand => toolWindowViewModel.RestoreContentCommand;
 
-    [DataMember]
-    public AsyncCommand ViewContentCommand { get; } = toolWindowViewModel.ViewContentCommand;
+    public ICommand ViewContentCommand => toolWindowViewModel.ViewContentCommand;
 
     #endregion Commands
 

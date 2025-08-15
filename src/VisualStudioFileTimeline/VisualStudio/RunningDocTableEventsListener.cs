@@ -1,5 +1,4 @@
 ﻿using System.Collections.Concurrent;
-using System.Diagnostics;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using VisualStudioFileTimeline.ViewModel;
@@ -129,6 +128,7 @@ internal sealed class RunningDocTableEventsListener
 
         //仅有修改的需要保存为记录
         //由于需要在保存完成后进行历史记录，在保存中检查是否有修改，并将路径加入到一个查询字典，以在保存后可以检查文件是否需要进行历史记录
+        //HACK 保存完成后再进行备份是否合理？
 
         _savingFilesQueue.Enqueue(new(docCookie, DateTime.UtcNow));
         _savingFilesMap[docCookie] = true;

@@ -1,13 +1,6 @@
-﻿using System.Runtime.Serialization;
-using Microsoft.VisualStudio.Extensibility;
-using Microsoft.VisualStudio.Extensibility.UI;
-using VisualStudioFileTimeline.Internal;
+﻿namespace VisualStudioFileTimeline.ViewModel;
 
-namespace VisualStudioFileTimeline.ViewModel;
-
-[DataContract]
-public class FileTimelineViewModel(FileTimelineManager fileTimelineManager,
-                                   VisualStudioExtensibility extensibility)
+public class FileTimelineViewModel(FileTimelineManager fileTimelineManager, TimelineToolWindowViewModel toolWindowViewModel)
     : NotifyPropertyChangedObject
 {
     #region Private 字段
@@ -18,8 +11,7 @@ public class FileTimelineViewModel(FileTimelineManager fileTimelineManager,
 
     #region Public 属性
 
-    [DataMember]
-    public TimelineToolWindowViewModel ToolWindowViewModel { get; } = new(extensibility);
+    public TimelineToolWindowViewModel ToolWindowViewModel { get; } = toolWindowViewModel;
 
     #endregion Public 属性
 

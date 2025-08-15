@@ -1,13 +1,20 @@
-﻿<DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-              xmlns:vs="http://schemas.microsoft.com/visualstudio/extensibility/2022/xaml"
-              xmlns:styles="clr-namespace:Microsoft.VisualStudio.Shell;assembly=Microsoft.VisualStudio.Shell.15.0"
-              xmlns:colors="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
-              xmlns:viewmodels="clr-namespace:VisualStudioFileTimeline.ViewModel;assembly=VisualStudioFileTimeline"
-              xmlns:converters="clr-namespace:VisualStudioFileTimeline.Converters;assembly=VisualStudioFileTimeline"
-              xmlns:core="clr-namespace:VisualStudioFileTimeline;assembly=VisualStudioFileTimeline.Core"
-              DataType="{x:Type viewmodels:TimelineToolWindowViewModel}">
+﻿<UserControl x:Class="VisualStudioFileTimeline.View.TimelineToolWindowControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vs="http://schemas.microsoft.com/visualstudio/extensibility/2022/xaml"
+             xmlns:imaging="clr-namespace:Microsoft.VisualStudio.Imaging;assembly=Microsoft.VisualStudio.Imaging"
+             xmlns:catalog="clr-namespace:Microsoft.VisualStudio.Imaging;assembly=Microsoft.VisualStudio.ImageCatalog"
+             xmlns:styles="clr-namespace:Microsoft.VisualStudio.Shell;assembly=Microsoft.VisualStudio.Shell.15.0"
+             xmlns:converters="clr-namespace:VisualStudioFileTimeline.Converters"
+             xmlns:viewmodels="clr-namespace:VisualStudioFileTimeline.ViewModel"
+             xmlns:core="clr-namespace:VisualStudioFileTimeline;assembly=VisualStudioFileTimeline.Core"
+             mc:Ignorable="d"
+             d:DesignHeight="400" d:DesignWidth="300"
+             d:DataContext="{d:DesignInstance Type=viewmodels:TimelineToolWindowViewModel}">
   <!-- 引用的命名空间必须要指定 assembly , 且对应的程序集必须强签名 -->
+  <!--xmlns:vs="http://schemas.microsoft.com/visualstudio/extensibility/2022/xaml" 直接导致设计器无法打开-->
 
   <Grid>
     <Grid.Resources>
@@ -68,7 +75,6 @@
 
             <Grid.ContextMenu>
               <ContextMenu Style="{DynamicResource {x:Static styles:VsResourceKeys.ContextMenuStyleKey}}">
-
                 <!--TODO 功能按钮应当由提供者提供-->
 
                 <!--<MenuItem Header="与当前进行比较"></MenuItem>
@@ -78,25 +84,27 @@
                 <Separator />-->
                 <MenuItem Header="{x:Static core:Resources.MenuItem_Header_ViewContent}" Command="{Binding ViewContentCommand}" CommandParameter="{Binding}">
                   <MenuItem.Icon>
-                    <vs:Image Source="KnownMonikers.OpenFile" />
+                    <imaging:CrispImage Moniker="{x:Static catalog:KnownMonikers.OpenFile}" />
                   </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="{x:Static core:Resources.MenuItem_Header_RestoreContent}" Command="{Binding RestoreContentCommand}" CommandParameter="{Binding}">
                   <MenuItem.Icon>
-                    <vs:Image Source="KnownMonikers.RestoreSnapshot" />
+                    <imaging:CrispImage Moniker="{x:Static catalog:KnownMonikers.RestoreSnapshot}" />
                   </MenuItem.Icon>
                 </MenuItem>
                 <Separator />
                 <MenuItem Header="{x:Static core:Resources.MenuItem_Header_OpenWithExplorer}" Command="{Binding OpenWithExplorerCommand}" CommandParameter="{Binding}">
                   <MenuItem.Icon>
-                    <vs:Image Source="KnownMonikers.OpenFolder" />
+                    <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                      <imaging:CrispImage Moniker="{x:Static catalog:KnownMonikers.OpenFolder}" />
+                    </Grid>
                   </MenuItem.Icon>
                 </MenuItem>
                 <Separator />
                 <!--<MenuItem Header="重命名"></MenuItem>-->
                 <MenuItem Header="{x:Static core:Resources.MenuItem_Header_Delete}" Command="{Binding DeleteCommand}" CommandParameter="{Binding}">
                   <MenuItem.Icon>
-                    <vs:Image Source="KnownMonikers.Delete" />
+                    <imaging:CrispImage Moniker="{x:Static catalog:KnownMonikers.Delete}" />
                   </MenuItem.Icon>
                 </MenuItem>
               </ContextMenu>
@@ -121,4 +129,4 @@
       </ListView.ItemTemplate>
     </ListView>
   </Grid>
-</DataTemplate>
+</UserControl>

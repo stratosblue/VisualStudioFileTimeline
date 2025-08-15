@@ -118,54 +118,54 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="ProviderDescription_LocalHistory" xml:space="preserve">
-    <value>LocalHistory</value>
+    <value>本地历史记录</value>
   </data>
   <data name="GeneralTitle" xml:space="preserve">
-    <value>FileTimeline</value>
+    <value>文件时间线</value>
   </data>
   <data name="TimelineItemSource_SavedFile" xml:space="preserve">
-    <value>saved file</value>
+    <value>已保存文件</value>
   </data>
   <data name="TimelineItemSource_SearchReplace" xml:space="preserve">
-    <value>search replace</value>
+    <value>搜索和替换</value>
   </data>
   <data name="Caption_ComparisonTitleFormat" xml:space="preserve">
-    <value>Difference - {0}</value>
+    <value>差异 - {0}</value>
   </data>
   <data name="TimeDisplayFormat_Now" xml:space="preserve">
-    <value>now</value>
+    <value>现在</value>
   </data>
   <data name="TimeDisplayFormat_Minute" xml:space="preserve">
-    <value>{0} minutes</value>
+    <value>{0} 分钟</value>
   </data>
   <data name="TimeDisplayFormat_Hour" xml:space="preserve">
-    <value>{0} hours</value>
+    <value>{0} 小时</value>
   </data>
   <data name="TimeDisplayFormat_Day" xml:space="preserve">
-    <value>{0} days</value>
+    <value>{0} 天</value>
   </data>
   <data name="TimeDisplayFormat_Week" xml:space="preserve">
-    <value>{0} weeks</value>
+    <value>{0} 周</value>
   </data>
   <data name="TimeDisplayFormat_Month" xml:space="preserve">
-    <value>{0} months</value>
+    <value>{0} 月</value>
   </data>
   <data name="TimeDisplayFormat_Year" xml:space="preserve">
-    <value>{0} years</value>
+    <value>{0} 年</value>
   </data>
   <data name="MenuItem_Header_ViewContent" xml:space="preserve">
-    <value>View Content</value>
+    <value>显示内容</value>
   </data>
   <data name="MenuItem_Header_RestoreContent" xml:space="preserve">
-    <value>Restore Content</value>
+    <value>还原内容</value>
   </data>
   <data name="MenuItem_Header_OpenWithExplorer" xml:space="preserve">
-    <value>Open With Explorer</value>
+    <value>在文件资源管理器中查看</value>
   </data>
   <data name="MenuItem_Header_Delete" xml:space="preserve">
-    <value>Delete</value>
+    <value>删除</value>
   </data>
   <data name="Caption_ToolWindow" xml:space="preserve">
-    <value>Timeline</value>
+    <value>时间线</value>
   </data>
 </root>

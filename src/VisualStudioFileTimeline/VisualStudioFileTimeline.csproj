@@ -1,12 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
+    <OutputType>Library</OutputType>
 
     <Version>0.0.3</Version>
 
     <UseWPF>true</UseWPF>
 
-    <VssdkCompatibleExtension>true</VssdkCompatibleExtension>
+    <GeneratePkgDefFile>true</GeneratePkgDefFile>
     <UseCodebase>true</UseCodebase>
 
     <!--程序集必须强签名，否则VS不加载-->
@@ -15,20 +16,41 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Page Remove="View\**\*.xaml" />
-    <None Remove="View\**\*.xaml" />
-    <EmbeddedResource Include="View\**\*.xaml" />
+    <None Include="Commands\CommandTable\*.vsct" />
+    <VSCTCompile Include="Commands\CommandTable\*.vsct">
+      <ResourceName>Menus.ctmenu</ResourceName>
+    </VSCTCompile>
   </ItemGroup>
-
+  
   <ItemGroup>
-    <PackageReference Include="Microsoft.VisualStudio.Extensibility.Sdk" Version="17.9.2092" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.VisualStudio.Extensibility.Build" Version="17.9.2092" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.VisualStudio.Shell.15.0" Version="17.9.37000" />
+    <PackageReference Include="Community.VisualStudio.VSCT" Version="16.0.29.6">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="7.0.0" />
+    <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.2.32505.173" />
+    <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="17.14.2094" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.VisualStudio.Shell.15.0" Version="17.8.37221" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\VisualStudioFileTimeline.Core\VisualStudioFileTimeline.Core.csproj" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <CustomAfterMicrosoftCSharpTargets Condition="$(VsSDKInstall) != ''">$(VsSDKInstall)\Microsoft.VsSDK.targets</CustomAfterMicrosoftCSharpTargets>
+
+    <IncludeAssemblyInVSIXContainer>true</IncludeAssemblyInVSIXContainer>
+    <IncludeDebugSymbolsInVSIXContainer>false</IncludeDebugSymbolsInVSIXContainer>
+    <IncludeDebugSymbolsInLocalVSIXDeployment>false</IncludeDebugSymbolsInLocalVSIXDeployment>
+    <CopyBuildOutputToOutputDirectory>true</CopyBuildOutputToOutputDirectory>
+    <CopyOutputSymbolsToOutputDirectory>true</CopyOutputSymbolsToOutputDirectory>
+    <DeployExtension>True</DeployExtension>
+
+    <StartAction>Program</StartAction>
+    <StartProgram Condition="'$(DevEnvDir)' != ''">$(DevEnvDir)devenv.exe</StartProgram>
+    <StartArguments>/rootsuffix Exp</StartArguments>
+  </PropertyGroup>
 
   <ItemGroup>
     <Content Include="icon.png">
@@ -36,6 +58,6 @@
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
   </ItemGroup>
-  
+
   <Target Name="GetVsixAssemblyVersion" Returns="$(Version)" />
 </Project>

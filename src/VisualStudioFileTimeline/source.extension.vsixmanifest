@@ -10,12 +10,9 @@
     <Tags>file, file histories, file timeline, timeline, edit histories, histories, history</Tags>
     <Preview>true</Preview>
   </Metadata>
-  <Installation ExtensionType="VSSDK+VisualStudio.Extensibility">
+  <Installation>
     <InstallationTarget Version="[17.0,)" Id="Microsoft.VisualStudio.Community">
       <ProductArchitecture>amd64</ProductArchitecture>
-    </InstallationTarget>
-    <InstallationTarget Version="[17.0,)" Id="Microsoft.VisualStudio.Community">
-      <ProductArchitecture>arm64</ProductArchitecture>
     </InstallationTarget>
   </Installation>
   <Prerequisites>

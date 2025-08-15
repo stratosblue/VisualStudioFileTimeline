@@ -1,11 +1,73 @@
-﻿using Microsoft.VisualStudio.Shell;
+﻿using Microsoft.VisualStudio.ComponentModelHost;
+using Microsoft.VisualStudio.Editor;
+using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using Microsoft.VisualStudio.Text;
+using Microsoft.VisualStudio.TextManager.Interop;
 
 namespace VisualStudioFileTimeline.VisualStudio;
 
 internal static class VisualStudioShellUtilities
 {
     #region Public 方法
+
+    /// <summary>
+    /// 使用<paramref name="package"/>获取MEF组件<typeparamref name="T"/>
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="package"></param>
+    /// <returns></returns>
+    public static T? GetComponentService<T>(this Package package) where T : class
+    {
+        var componentModel = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetService<SComponentModel>(package) as IComponentModel;
+        return componentModel?.GetService<T>();
+    }
+
+    /// <summary>
+    /// 获取 <paramref name="moniker"/> 正在编辑的 <see cref="ITextBuffer"/>
+    /// </summary>
+    /// <param name="moniker"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    public static async Task<ITextBuffer?> GetTextBufferAsync(Package package, Uri moniker, CancellationToken cancellationToken)
+    {
+        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+
+        var fullPath = moniker.AbsolutePath;
+
+        if (TryGetVsUIShellOpenDocument(out var vsUIShellOpenDocument))
+        {
+            var logicalView = Guid.Empty;
+            var hr = vsUIShellOpenDocument.IsDocumentOpen(pHierCaller: default,
+                                                          itemidCaller: default,
+                                                          pszMkDocument: fullPath,
+                                                          rguidLogicalView: ref logicalView,
+                                                          grfIDO: default,
+                                                          ppHierOpen: out var ppHierOpen,
+                                                          pitemidOpen: default,
+                                                          ppWindowFrame: out var windowFrame,
+                                                          pfOpen: out var pfOpen);
+            if (hr == 0
+                && pfOpen == 1
+                && windowFrame.GetProperty((int)__VSFPROPID.VSFPROPID_DocView, out var docView) == 0)
+            {
+                var vsTextView = docView as IVsTextView;
+                if (vsTextView == null
+                    && docView is IVsCodeWindow vsCodeWindow)
+                {
+                    vsCodeWindow.GetPrimaryView(out vsTextView);
+                }
+
+                if (vsTextView?.GetBuffer(out var vsTextBuffer) == 0
+                    && vsTextBuffer is not null)
+                {
+                    var adapterService = GetComponentService<IVsEditorAdaptersFactoryService>(package);
+                    return adapterService?.GetDataBuffer(vsTextBuffer);
+                }
+            }
+        }
+        return null;
+    }
 
     /// <summary>
     /// 检查文件 <paramref name="moniker"/> 是否为未保存编辑状态

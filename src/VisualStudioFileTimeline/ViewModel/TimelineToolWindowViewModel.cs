@@ -1,18 +1,16 @@
 ﻿using System.Diagnostics;
 using System.IO;
-using System.Runtime.Serialization;
-using Microsoft.VisualStudio.Extensibility;
-using Microsoft.VisualStudio.Extensibility.UI;
+using System.Windows.Input;
+using Microsoft.VisualStudio.PlatformUI;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Threading;
 using VisualStudioFileTimeline.VisualStudio;
 
 namespace VisualStudioFileTimeline.ViewModel;
 
-[DataContract]
 public class TimelineToolWindowViewModel : NotifyPropertyChangedObject
 {
     #region Private 字段
-
-    private readonly VisualStudioExtensibility _extensibility;
 
     private string? _fileName;
 
@@ -24,33 +22,29 @@ public class TimelineToolWindowViewModel : NotifyPropertyChangedObject
 
     #region Public 属性
 
-    [DataMember]
     public string? FileName
     {
         get => _fileName;
         set => SetProperty(ref _fileName, value);
     }
 
-    [DataMember]
     public ObservableList<TimelineItemViewModel> Items
     {
         get => _items;
         set => SetProperty(ref _items, value);
     }
 
+    public VisualStudioFileTimelinePackage Package { get; }
+
     #region Commands
 
-    [DataMember]
-    public AsyncCommand DeleteCommand { get; }
+    public ICommand DeleteCommand { get; }
 
-    [DataMember]
-    public AsyncCommand OpenWithExplorerCommand { get; }
+    public ICommand OpenWithExplorerCommand { get; }
 
-    [DataMember]
-    public AsyncCommand RestoreContentCommand { get; }
+    public ICommand RestoreContentCommand { get; }
 
-    [DataMember]
-    public AsyncCommand ViewContentCommand { get; }
+    public ICommand ViewContentCommand { get; }
 
     #endregion Commands
 
@@ -58,18 +52,22 @@ public class TimelineToolWindowViewModel : NotifyPropertyChangedObject
 
     #region Public 构造函数
 
-    public TimelineToolWindowViewModel(VisualStudioExtensibility extensibility)
+    public TimelineToolWindowViewModel(VisualStudioFileTimelinePackage package)
     {
-        DeleteCommand = new AsyncCommand(async (parameter, clientContext, token) =>
-        {
-            if (parameter is TimelineItemViewModel viewModel
-                && await viewModel.Timeline.DeleteItemAsync(viewModel.RawItem, token))
-            {
-                Items.Remove(viewModel);
-            }
-        });
+        Package = package ?? throw new ArgumentNullException(nameof(package));
 
-        OpenWithExplorerCommand = new AsyncCommand((parameter, clientContext, token) =>
+        DeleteCommand = new DelegateCommand<TimelineItemViewModel>((viewModel) =>
+        {
+            package.JoinableTaskFactory.RunAsync(async () =>
+            {
+                if (await viewModel.Timeline.DeleteItemAsync(viewModel.RawItem, default))
+                {
+                    Items.Remove(viewModel);
+                }
+            }).Task.Forget();
+        }, static _ => true, package.JoinableTaskFactory);
+
+        OpenWithExplorerCommand = new DelegateCommand((parameter) =>
         {
             if (parameter is TimelineItemViewModel viewModel)
             {
@@ -79,37 +77,44 @@ public class TimelineToolWindowViewModel : NotifyPropertyChangedObject
                     Arguments = $"/select,\"{viewModel.FilePath}\""
                 });
             }
-            return Task.CompletedTask;
-        });
+        }, static _ => true, package.JoinableTaskFactory);
 
-        RestoreContentCommand = new AsyncCommand(async (parameter, clientContext, token) =>
+        RestoreContentCommand = new DelegateCommand((parameter) =>
         {
             if (parameter is TimelineItemViewModel viewModel
-                && File.Exists(viewModel.FilePath)
-                && await extensibility.Documents().GetOpenDocumentAsync(viewModel.Timeline.Resource, token) is { } document
-                && await document.AsTextDocumentAsync(extensibility, token) is { } textDocument)
+                && File.Exists(viewModel.FilePath))
             {
-                using var fs = File.OpenRead(viewModel.FilePath);
-                using var reader = new StreamReader(fs);
-                var text = await reader.ReadToEndAsync();
-                await extensibility.Editor()
-                                   .EditAsync(editorSource: batch =>
-                                   {
-                                       textDocument.AsEditable(batch)
-                                                   .Replace(textDocument.Text, text);
-                                   }, cancellationToken: token);
-            }
-        });
+                var textReadTask = Task.Run(async () =>
+                {
+                    using var fs = File.OpenRead(viewModel.FilePath);
+                    using var reader = new StreamReader(fs);
+                    return await reader.ReadToEndAsync();
+                });
 
-        ViewContentCommand = new AsyncCommand((parameter, clientContext, token) =>
+                package.JoinableTaskFactory.RunAsync(async () =>
+                {
+                    if (await VisualStudioShellUtilities.GetTextBufferAsync(package, viewModel.Timeline.Resource, default) is { } textBuffer)
+                    {
+#pragma warning disable VSTHRD003 // Avoid awaiting foreign Tasks
+                        var text = await textReadTask;
+#pragma warning restore VSTHRD003 // Avoid awaiting foreign Tasks
+
+                        textBuffer.Replace(new(0, textBuffer.CurrentSnapshot.Length), text);
+                    }
+                }).Task.Forget();
+            }
+        }, static _ => true, package.JoinableTaskFactory);
+
+        ViewContentCommand = new DelegateCommand((parameter) =>
         {
             if (parameter is TimelineItemViewModel viewModel)
             {
-                return VisualStudioShellUtilities.OpenProvisionalFileViewAsync(viewModel.FilePath, token);
+                package.JoinableTaskFactory.RunAsync(() =>
+                {
+                    return VisualStudioShellUtilities.OpenProvisionalFileViewAsync(viewModel.FilePath, default);
+                }).Task.Forget();
             }
-            return Task.CompletedTask;
-        });
-        _extensibility = extensibility;
+        }, static _ => true, package.JoinableTaskFactory);
     }
 
     #endregion Public 构造函数
@@ -146,11 +151,19 @@ public class TimelineToolWindowViewModel : NotifyPropertyChangedObject
             && Items is { } items)
         {
             var insertIndex = fileTimeline.AddOrUpdateItem(fileTimelineItem, out var removedIndex);
-            if (removedIndex >= 0)
+
+            Package.JoinableTaskFactory.RunAsync(async () =>
             {
-                items.RemoveAt(removedIndex);
-            }
-            items.Insert(insertIndex, new(fileTimeline, fileTimelineItem, this));
+                await Package.JoinableTaskFactory.SwitchToMainThreadAsync(default);
+
+                if (removedIndex >= 0)
+                {
+                    items.RemoveAt(removedIndex);
+                }
+                items.Insert(insertIndex, new(fileTimeline, fileTimelineItem, this));
+
+                return Task.CompletedTask;
+            }).Task.Forget();
         }
     }
 
