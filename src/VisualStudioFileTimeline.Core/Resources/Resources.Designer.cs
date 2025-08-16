@@ -61,7 +61,7 @@ namespace VisualStudioFileTimeline {
         }
         
         /// <summary>
-        ///   查找类似 差异 - {0} 的本地化字符串。
+        ///   查找类似 Difference - {0} 的本地化字符串。
         /// </summary>
         public static string Caption_ComparisonTitleFormat {
             get {
@@ -70,7 +70,7 @@ namespace VisualStudioFileTimeline {
         }
         
         /// <summary>
-        ///   查找类似 时间线 的本地化字符串。
+        ///   查找类似 Timeline 的本地化字符串。
         /// </summary>
         public static string Caption_ToolWindow {
             get {
@@ -79,7 +79,7 @@ namespace VisualStudioFileTimeline {
         }
         
         /// <summary>
-        ///   查找类似 文件时间线 的本地化字符串。
+        ///   查找类似 FileTimeline 的本地化字符串。
         /// </summary>
         public static string GeneralTitle {
             get {
@@ -88,7 +88,7 @@ namespace VisualStudioFileTimeline {
         }
         
         /// <summary>
-        ///   查找类似 删除 的本地化字符串。
+        ///   查找类似 Delete 的本地化字符串。
         /// </summary>
         public static string MenuItem_Header_Delete {
             get {
@@ -97,7 +97,7 @@ namespace VisualStudioFileTimeline {
         }
         
         /// <summary>
-        ///   查找类似 在文件资源管理器中查看 的本地化字符串。
+        ///   查找类似 Open With Explorer 的本地化字符串。
         /// </summary>
         public static string MenuItem_Header_OpenWithExplorer {
             get {
@@ -106,7 +106,7 @@ namespace VisualStudioFileTimeline {
         }
         
         /// <summary>
-        ///   查找类似 还原内容 的本地化字符串。
+        ///   查找类似 Restore Content 的本地化字符串。
         /// </summary>
         public static string MenuItem_Header_RestoreContent {
             get {
@@ -115,7 +115,7 @@ namespace VisualStudioFileTimeline {
         }
         
         /// <summary>
-        ///   查找类似 显示内容 的本地化字符串。
+        ///   查找类似 View Content 的本地化字符串。
         /// </summary>
         public static string MenuItem_Header_ViewContent {
             get {
@@ -124,7 +124,7 @@ namespace VisualStudioFileTimeline {
         }
         
         /// <summary>
-        ///   查找类似 本地历史记录 的本地化字符串。
+        ///   查找类似 LocalHistory 的本地化字符串。
         /// </summary>
         public static string ProviderDescription_LocalHistory {
             get {
@@ -133,7 +133,7 @@ namespace VisualStudioFileTimeline {
         }
         
         /// <summary>
-        ///   查找类似 {0} 天 的本地化字符串。
+        ///   查找类似 {0} days 的本地化字符串。
         /// </summary>
         public static string TimeDisplayFormat_Day {
             get {
@@ -142,7 +142,7 @@ namespace VisualStudioFileTimeline {
         }
         
         /// <summary>
-        ///   查找类似 {0} 小时 的本地化字符串。
+        ///   查找类似 {0} hours 的本地化字符串。
         /// </summary>
         public static string TimeDisplayFormat_Hour {
             get {
@@ -151,7 +151,7 @@ namespace VisualStudioFileTimeline {
         }
         
         /// <summary>
-        ///   查找类似 {0} 分钟 的本地化字符串。
+        ///   查找类似 {0} minutes 的本地化字符串。
         /// </summary>
         public static string TimeDisplayFormat_Minute {
             get {
@@ -160,7 +160,7 @@ namespace VisualStudioFileTimeline {
         }
         
         /// <summary>
-        ///   查找类似 {0} 月 的本地化字符串。
+        ///   查找类似 {0} months 的本地化字符串。
         /// </summary>
         public static string TimeDisplayFormat_Month {
             get {
@@ -169,7 +169,7 @@ namespace VisualStudioFileTimeline {
         }
         
         /// <summary>
-        ///   查找类似 现在 的本地化字符串。
+        ///   查找类似 now 的本地化字符串。
         /// </summary>
         public static string TimeDisplayFormat_Now {
             get {
@@ -178,7 +178,7 @@ namespace VisualStudioFileTimeline {
         }
         
         /// <summary>
-        ///   查找类似 {0} 周 的本地化字符串。
+        ///   查找类似 {0} weeks 的本地化字符串。
         /// </summary>
         public static string TimeDisplayFormat_Week {
             get {
@@ -187,7 +187,7 @@ namespace VisualStudioFileTimeline {
         }
         
         /// <summary>
-        ///   查找类似 {0} 年 的本地化字符串。
+        ///   查找类似 {0} years 的本地化字符串。
         /// </summary>
         public static string TimeDisplayFormat_Year {
             get {
@@ -196,7 +196,7 @@ namespace VisualStudioFileTimeline {
         }
         
         /// <summary>
-        ///   查找类似 已保存文件 的本地化字符串。
+        ///   查找类似 saved file 的本地化字符串。
         /// </summary>
         public static string TimelineItemSource_SavedFile {
             get {
@@ -205,11 +205,20 @@ namespace VisualStudioFileTimeline {
         }
         
         /// <summary>
-        ///   查找类似 搜索和替换 的本地化字符串。
+        ///   查找类似 search replace 的本地化字符串。
         /// </summary>
         public static string TimelineItemSource_SearchReplace {
             get {
                 return ResourceManager.GetString("TimelineItemSource_SearchReplace", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 The current file does not have any historical records yet. 的本地化字符串。
+        /// </summary>
+        public static string View_Tips_NoHistoryNow {
+            get {
+                return ResourceManager.GetString("View_Tips_NoHistoryNow", resourceCulture);
             }
         }
     }

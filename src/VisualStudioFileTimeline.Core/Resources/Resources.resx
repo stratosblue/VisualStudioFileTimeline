@@ -168,4 +168,7 @@
   <data name="Caption_ToolWindow" xml:space="preserve">
     <value>Timeline</value>
   </data>
+  <data name="View_Tips_NoHistoryNow" xml:space="preserve">
+    <value>The current file does not have any historical records yet.</value>
+  </data>
 </root>

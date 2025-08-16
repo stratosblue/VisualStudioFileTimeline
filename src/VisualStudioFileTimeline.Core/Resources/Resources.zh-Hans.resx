@@ -168,4 +168,7 @@
   <data name="Caption_ToolWindow" xml:space="preserve">
     <value>时间线</value>
   </data>
+  <data name="View_Tips_NoHistoryNow" xml:space="preserve">
+    <value>当前文件还没有任何历史记录。</value>
+  </data>
 </root>

@@ -4,8 +4,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vs="http://schemas.microsoft.com/visualstudio/extensibility/2022/xaml"
-             xmlns:imaging="clr-namespace:Microsoft.VisualStudio.Imaging;assembly=Microsoft.VisualStudio.Imaging"
              xmlns:catalog="clr-namespace:Microsoft.VisualStudio.Imaging;assembly=Microsoft.VisualStudio.ImageCatalog"
+             xmlns:imaging="clr-namespace:Microsoft.VisualStudio.Imaging;assembly=Microsoft.VisualStudio.Imaging"
              xmlns:styles="clr-namespace:Microsoft.VisualStudio.Shell;assembly=Microsoft.VisualStudio.Shell.15.0"
              xmlns:converters="clr-namespace:VisualStudioFileTimeline.Converters"
              xmlns:viewmodels="clr-namespace:VisualStudioFileTimeline.ViewModel"
@@ -16,7 +16,7 @@
   <!-- 引用的命名空间必须要指定 assembly , 且对应的程序集必须强签名 -->
   <!--xmlns:vs="http://schemas.microsoft.com/visualstudio/extensibility/2022/xaml" 直接导致设计器无法打开-->
 
-  <Grid>
+  <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
     <Grid.Resources>
 
       <Style TargetType="ListView" BasedOn="{StaticResource {x:Static styles:VsResourceKeys.ThemedDialogListViewStyleKey}}" />
@@ -28,6 +28,7 @@
       </Style>
 
       <converters:TimeDisplayConverter x:Key="TimeDisplayConverter" />
+      <converters:Int32ToVisibilityConverter x:Key="Int32ToVisibilityConverter" />
     </Grid.Resources>
 
     <Grid.ColumnDefinitions>
@@ -39,94 +40,122 @@
       <RowDefinition />
     </Grid.RowDefinitions>
 
-    <Border BorderThickness="1">
-      <TextBlock Text="{Binding FileName}"
-                 TextTrimming="CharacterEllipsis"
-                 TextWrapping="NoWrap" />
+    <!--Title-->
+    <Border BorderThickness="0,0,0,1"
+            BorderBrush="{DynamicResource {x:Static styles:VsBrushes.InactiveBorderKey}}">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Text="{Binding FileName}"
+                   TextTrimming="CharacterEllipsis"
+                   TextWrapping="NoWrap"
+                   Margin="8,1"/>
+      </Grid>
     </Border>
-    <ListView Grid.Row="1"
-              ItemsSource="{Binding Items, Mode=OneWay}"
-		          SelectionMode="Single">
-      <ListView.Resources>
-        <Style TargetType="ScrollViewer">
-          <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
-        </Style>
-      </ListView.Resources>
+    <!--Title-->
 
-      <ListView.ItemContainerStyle>
-        <Style TargetType="ListViewItem">
-          <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-          <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
-        </Style>
-      </ListView.ItemContainerStyle>
+    <!--Content-->
+    <Grid Grid.Row="1">
 
-      <ListView.ItemTemplate>
-        <DataTemplate DataType="{x:Type viewmodels:TimelineItemViewModel}">
-          <Grid Margin="8,0">
+      <!--Tips-->
+      <Grid Visibility="{Binding Items.Count, Converter={StaticResource Int32ToVisibilityConverter}, ConverterParameter=0}"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center">
+        <TextBlock Text="{x:Static core:Resources.View_Tips_NoHistoryNow}" />
+      </Grid>
+      <!--Tips-->
 
-            <Grid.ToolTip>
-              <ToolTip Style="{DynamicResource {x:Static styles:VsResourceKeys.LargeToolTipStyleKey}}">
-                <StackPanel>
-                  <TextBlock Text="{Binding Time}" />
-                  <TextBlock Text="{Binding Title}" FontWeight="Bold" />
-                </StackPanel>
-              </ToolTip>
-            </Grid.ToolTip>
+      <!--History List-->
+      <ListView Visibility="{Binding Items.Count, Converter={StaticResource Int32ToVisibilityConverter}}"
+                ItemsSource="{Binding Items, Mode=OneWay}"
+		            SelectionMode="Single"
+                BorderThickness="0">
+        <ListView.Resources>
+          <Style TargetType="ScrollViewer">
+            <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+          </Style>
+        </ListView.Resources>
 
-            <Grid.ContextMenu>
-              <ContextMenu Style="{DynamicResource {x:Static styles:VsResourceKeys.ContextMenuStyleKey}}">
-                <!--TODO 功能按钮应当由提供者提供-->
+        <ListView.ItemContainerStyle>
+          <Style TargetType="ListViewItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
+          </Style>
+        </ListView.ItemContainerStyle>
 
-                <!--<MenuItem Header="与当前进行比较"></MenuItem>
+        <ListView.ItemTemplate>
+          <DataTemplate DataType="{x:Type viewmodels:TimelineItemViewModel}">
+            <Grid Margin="8,0">
+
+              <Grid.ToolTip>
+                <ToolTip Style="{DynamicResource {x:Static styles:VsResourceKeys.LargeToolTipStyleKey}}">
+                  <StackPanel>
+                    <TextBlock Text="{Binding Time}" />
+                    <TextBlock Text="{Binding Title}" FontWeight="Bold" />
+                  </StackPanel>
+                </ToolTip>
+              </Grid.ToolTip>
+
+              <Grid.ContextMenu>
+                <ContextMenu Style="{DynamicResource {x:Static styles:VsResourceKeys.ContextMenuStyleKey}}">
+                  <!--TODO 功能按钮应当由提供者提供-->
+
+                  <!--<MenuItem Header="与当前进行比较"></MenuItem>
                 <MenuItem Header="与上一个版本比较"></MenuItem>
                 <Separator />
                 <MenuItem Header="作为对比基线" Command="{Binding SelectAsComparisonBaseLineCommand}"></MenuItem>
                 <Separator />-->
-                <MenuItem Header="{x:Static core:Resources.MenuItem_Header_ViewContent}" Command="{Binding ViewContentCommand}" CommandParameter="{Binding}">
-                  <MenuItem.Icon>
-                    <imaging:CrispImage Moniker="{x:Static catalog:KnownMonikers.OpenFile}" />
-                  </MenuItem.Icon>
-                </MenuItem>
-                <MenuItem Header="{x:Static core:Resources.MenuItem_Header_RestoreContent}" Command="{Binding RestoreContentCommand}" CommandParameter="{Binding}">
-                  <MenuItem.Icon>
-                    <imaging:CrispImage Moniker="{x:Static catalog:KnownMonikers.RestoreSnapshot}" />
-                  </MenuItem.Icon>
-                </MenuItem>
-                <Separator />
-                <MenuItem Header="{x:Static core:Resources.MenuItem_Header_OpenWithExplorer}" Command="{Binding OpenWithExplorerCommand}" CommandParameter="{Binding}">
-                  <MenuItem.Icon>
-                    <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
-                      <imaging:CrispImage Moniker="{x:Static catalog:KnownMonikers.OpenFolder}" />
-                    </Grid>
-                  </MenuItem.Icon>
-                </MenuItem>
-                <Separator />
-                <!--<MenuItem Header="重命名"></MenuItem>-->
-                <MenuItem Header="{x:Static core:Resources.MenuItem_Header_Delete}" Command="{Binding DeleteCommand}" CommandParameter="{Binding}">
-                  <MenuItem.Icon>
-                    <imaging:CrispImage Moniker="{x:Static catalog:KnownMonikers.Delete}" />
-                  </MenuItem.Icon>
-                </MenuItem>
-              </ContextMenu>
-            </Grid.ContextMenu>
+                  <MenuItem Header="{x:Static core:Resources.MenuItem_Header_ViewContent}" Command="{Binding ViewContentCommand}" CommandParameter="{Binding}">
+                    <MenuItem.Icon>
+                      <imaging:CrispImage Moniker="{x:Static catalog:KnownMonikers.OpenFile}" />
+                    </MenuItem.Icon>
+                  </MenuItem>
+                  <MenuItem Header="{x:Static core:Resources.MenuItem_Header_RestoreContent}" Command="{Binding RestoreContentCommand}" CommandParameter="{Binding}">
+                    <MenuItem.Icon>
+                      <imaging:CrispImage Moniker="{x:Static catalog:KnownMonikers.RestoreSnapshot}" />
+                    </MenuItem.Icon>
+                  </MenuItem>
+                  <Separator />
+                  <MenuItem Header="{x:Static core:Resources.MenuItem_Header_OpenWithExplorer}" Command="{Binding OpenWithExplorerCommand}" CommandParameter="{Binding}">
+                    <MenuItem.Icon>
+                      <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <imaging:CrispImage Moniker="{x:Static catalog:KnownMonikers.OpenFolder}" />
+                      </Grid>
+                    </MenuItem.Icon>
+                  </MenuItem>
+                  <Separator />
+                  <!--<MenuItem Header="重命名"></MenuItem>-->
+                  <MenuItem Header="{x:Static core:Resources.MenuItem_Header_Delete}" Command="{Binding DeleteCommand}" CommandParameter="{Binding}">
+                    <MenuItem.Icon>
+                      <imaging:CrispImage Moniker="{x:Static catalog:KnownMonikers.Delete}" />
+                    </MenuItem.Icon>
+                  </MenuItem>
+                </ContextMenu>
+              </Grid.ContextMenu>
 
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition />
-              <ColumnDefinition Width="Auto" />
-              <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
 
-            <TextBlock Text="{Binding Title, Mode=OneWay}"
-                       TextTrimming="CharacterEllipsis"
-                       TextWrapping="NoWrap" />
+              <TextBlock Text="{Binding Title, Mode=OneWay}"
+                         TextTrimming="CharacterEllipsis"
+                         TextWrapping="NoWrap" />
 
-            <TextBlock Grid.Column="1"
-					             Text="{Binding Time, Mode=OneWay, Converter={StaticResource TimeDisplayConverter}}"
-                       Opacity="0.7"
-                       HorizontalAlignment="Right" />
-          </Grid>
-        </DataTemplate>
-      </ListView.ItemTemplate>
-    </ListView>
+              <TextBlock Grid.Column="1"
+					               Text="{Binding Time, Mode=OneWay, Converter={StaticResource TimeDisplayConverter}}"
+                         Opacity="0.7"
+                         HorizontalAlignment="Right" />
+            </Grid>
+          </DataTemplate>
+        </ListView.ItemTemplate>
+      </ListView>
+      <!--History List-->
+    </Grid>
+    <!--Content-->
   </Grid>
 </UserControl>
