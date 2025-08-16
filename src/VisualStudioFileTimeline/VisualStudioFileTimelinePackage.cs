@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using VisualStudioFileTimeline.Commands;
-using VisualStudioFileTimeline.Internal;
 using VisualStudioFileTimeline.Providers.Default;
 using VisualStudioFileTimeline.Providers.VsCode;
 using VisualStudioFileTimeline.View;
@@ -76,7 +75,7 @@ public sealed class VisualStudioFileTimelinePackage : AsyncPackage
     #endregion Package Members
 
     #region Private 方法
-
+    
     private void InitializeServices(IServiceCollection serviceCollection)
     {
         AddFileTimelineProvider<LocalHistoryFileTimelineProvider>(serviceCollection);
@@ -88,7 +87,6 @@ public sealed class VisualStudioFileTimelinePackage : AsyncPackage
         serviceCollection.TryAddSingleton<VisualStudioFileTimelinePackage>(this);
 
         serviceCollection.TryAddSingleton<FileTimelineManager>();
-        serviceCollection.TryAddSingleton<TimelineToolWindowAccessor>();
         serviceCollection.TryAddSingleton<RunningDocTableEventsListener>();
 
         static void AddFileTimelineProvider<T>(IServiceCollection serviceCollection)

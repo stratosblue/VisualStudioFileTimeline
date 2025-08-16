@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using VisualStudioFileTimeline.Internal;
 using VisualStudioFileTimeline.ViewModel;
 
 namespace VisualStudioFileTimeline.VisualStudio;
@@ -13,6 +14,8 @@ internal sealed class RunningDocTableEventsListener
 {
     #region Private 字段
 
+    private readonly CancellationToken _cancellationToken;
+
     private readonly CancellationTokenSource _cancellationTokenSource;
 
     private readonly uint _cookie;
@@ -20,6 +23,8 @@ internal sealed class RunningDocTableEventsListener
     private readonly FileTimelineManager _fileTimelineManager;
 
     private readonly FileTimelineViewModel _fileTimelineViewModel;
+
+    private readonly PeriodicAsyncTrigger _periodicAsyncTrigger;
 
     private readonly RunningDocumentTable _runningDocumentTable;
 
@@ -43,8 +48,13 @@ internal sealed class RunningDocTableEventsListener
         _fileTimelineViewModel = fileTimelineViewModel;
 
         _cancellationTokenSource = new CancellationTokenSource();
+        _cancellationToken = _cancellationTokenSource.Token;
 
-        _ = StartSavingFilesMapCleanAsync(_cancellationTokenSource.Token);
+        _periodicAsyncTrigger = new(() =>
+        {
+            CleanSavingFilesMap(_cancellationToken);
+            return Task.CompletedTask;
+        }, TimeSpan.FromMinutes(3));
     }
 
     #endregion Public 构造函数
@@ -56,6 +66,15 @@ internal sealed class RunningDocTableEventsListener
         if (!_isDisposed)
         {
             _runningDocumentTable.Unadvise(_cookie);
+
+            try
+            {
+                _cancellationTokenSource.Cancel();
+            }
+            catch { }
+
+            _cancellationTokenSource.Dispose();
+            _periodicAsyncTrigger.Dispose();
 
             _isDisposed = true;
         }
@@ -71,6 +90,8 @@ internal sealed class RunningDocTableEventsListener
 
     public int OnAfterSave(uint docCookie)
     {
+        ThrowIfDisposed();
+
         ThreadHelper.ThrowIfNotOnUIThread();
 
         if (_savingFilesMap.TryGetValue(docCookie, out var shouldAddHistory)
@@ -84,7 +105,7 @@ internal sealed class RunningDocTableEventsListener
             {
                 await Task.Yield();
                 var descriptor = new FileHistoryDescriptor(resource, DateTime.Now, null);
-                var savedFileTimelineItem = await _fileTimelineManager.AddHistoryAsync(descriptor, default);
+                var savedFileTimelineItem = await _fileTimelineManager.AddHistoryAsync(descriptor, _cancellationToken);
                 _fileTimelineViewModel.UpdateCurrentFileTimelineItems(savedFileTimelineItem);
             });
         }
@@ -93,6 +114,8 @@ internal sealed class RunningDocTableEventsListener
 
     public int OnBeforeDocumentWindowShow(uint docCookie, int fFirstShow, IVsWindowFrame pFrame)
     {
+        ThrowIfDisposed();
+
         ThreadHelper.ThrowIfNotOnUIThread();
 
         if (pFrame.GetProperty((int)__VSFPROPID.VSFPROPID_pszMkDocument, out var pszMkDocument) != 0
@@ -106,7 +129,7 @@ internal sealed class RunningDocTableEventsListener
             return 0;
         }
 
-        _ = _fileTimelineViewModel.ChangeCurrentFileAsync(new Uri(moniker), default);
+        _ = _fileTimelineViewModel.ChangeCurrentFileAsync(new Uri(moniker), _cancellationToken);
 
         return 0;
     }
@@ -115,6 +138,10 @@ internal sealed class RunningDocTableEventsListener
 
     public int OnBeforeSave(uint docCookie)
     {
+        ThrowIfDisposed();
+
+        _periodicAsyncTrigger.TryToTrigger();
+
         ThreadHelper.ThrowIfNotOnUIThread();
 
         var runningDocumentInfo = _runningDocumentTable.GetDocumentInfo(docCookie);
@@ -140,31 +167,32 @@ internal sealed class RunningDocTableEventsListener
 
     #region Private 方法
 
-    private async Task StartSavingFilesMapCleanAsync(CancellationToken cancellationToken)
+    private void CleanSavingFilesMap(CancellationToken cancellationToken)
     {
-        await Task.Yield();
-
-        //清理保存检查字典
         var interval = TimeSpan.FromMinutes(3);
-        while (!cancellationToken.IsCancellationRequested)
+
+        try
         {
-            try
+            var time = DateTime.UtcNow - interval;
+            while (_savingFilesQueue.TryPeek(out var item)
+                   && !cancellationToken.IsCancellationRequested)
             {
-                var time = DateTime.UtcNow - interval;
-                while (_savingFilesQueue.TryPeek(out var item))
+                if (item.Time > time)
                 {
-                    if (item.Time < time)
-                    {
-                        _savingFilesQueue.TryDequeue(out item);
-                        _savingFilesMap.TryRemove(item.DocCookie, out _);
-                    }
+                    break;
                 }
+                _savingFilesQueue.TryDequeue(out item);
+                _savingFilesMap.TryRemove(item.DocCookie, out _);
             }
-            catch
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-            }
-            await Task.Delay(interval, cancellationToken);
+        }
+        catch { }
+    }
+
+    private void ThrowIfDisposed()
+    {
+        if (_isDisposed)
+        {
+            throw new ObjectDisposedException(nameof(PeriodicAsyncTrigger));
         }
     }
 
