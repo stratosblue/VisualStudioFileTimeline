@@ -5,8 +5,14 @@ namespace VisualStudioFileTimeline.ViewModel;
 
 public abstract class NotifyPropertyChangedObject : INotifyPropertyChanged
 {
+    #region Public 事件
+
     /// <inheritdoc/>
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    #endregion Public 事件
+
+    #region Protected 方法
 
     protected void SetProperty<T>(ref T value, T newValue, [CallerMemberName] string? propertyName = null)
     {
@@ -17,4 +23,6 @@ public abstract class NotifyPropertyChangedObject : INotifyPropertyChanged
             propertyChanged.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
+
+    #endregion Protected 方法
 }

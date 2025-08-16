@@ -4,6 +4,8 @@ namespace VisualStudioFileTimeline.Providers.VsCode;
 
 internal static class UriExtensions
 {
+    #region Public 方法
+
     public static string ToVsCodeCompatiblePath(this Uri uri)
     {
         var path = uri.AbsolutePath;
@@ -25,4 +27,6 @@ internal static class UriExtensions
 
         return builder.ToString();
     }
+
+    #endregion Public 方法
 }
