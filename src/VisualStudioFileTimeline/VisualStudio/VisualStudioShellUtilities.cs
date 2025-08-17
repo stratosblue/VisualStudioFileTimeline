@@ -178,7 +178,7 @@ internal static class VisualStudioShellUtilities
     }
 
     public static async Task<IVsWindowFrame> ShowFileTimelineComparisonWindowAsync(FileTimeline fileTimeline,
-                                                                                           string comparisonFilePath,
+                                                                                   string comparisonFilePath,
                                                                                    string comparisonFileDescription,
                                                                                    CancellationToken cancellationToken = default)
     {

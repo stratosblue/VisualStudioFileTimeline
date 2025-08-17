@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.Shell;
 using VisualStudioFileTimeline.Internal;
 
@@ -13,6 +14,8 @@ public class FileTimelineViewModel : NotifyPropertyChangedObject, IDisposable
     private readonly CancellationTokenSource _cancellationTokenSource;
 
     private readonly FileTimelineManager _fileTimelineManager;
+
+    private readonly ILogger _logger;
 
     private readonly PeriodicAsyncTrigger _periodicAsyncTrigger;
 
@@ -31,10 +34,12 @@ public class FileTimelineViewModel : NotifyPropertyChangedObject, IDisposable
     #region Public 构造函数
 
     public FileTimelineViewModel(FileTimelineManager fileTimelineManager,
-                                 TimelineToolWindowViewModel toolWindowViewModel)
+                                 TimelineToolWindowViewModel toolWindowViewModel,
+                                 ILogger<FileTimelineViewModel> logger)
     {
         _fileTimelineManager = fileTimelineManager ?? throw new ArgumentNullException(nameof(fileTimelineManager));
         ToolWindowViewModel = toolWindowViewModel ?? throw new ArgumentNullException(nameof(toolWindowViewModel));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         _cancellationTokenSource = new CancellationTokenSource();
         _cancellationToken = _cancellationTokenSource.Token;
@@ -56,6 +61,7 @@ public class FileTimelineViewModel : NotifyPropertyChangedObject, IDisposable
 
         if (string.Equals(_currentResource?.AbsolutePath, resource.AbsolutePath))
         {
+            _logger.LogInformation("Ignore change current file because it has not been changed. {Resource}", resource);
             return;
         }
         _currentResource = resource;
@@ -87,15 +93,22 @@ public class FileTimelineViewModel : NotifyPropertyChangedObject, IDisposable
     {
         if (!_isDisposed)
         {
+            _logger.LogInformation("FileTimelineViewModel disposing.");
             try
             {
-                _cancellationTokenSource.Cancel();
+                try
+                {
+                    _cancellationTokenSource.Cancel();
+                }
+                catch { }
+
+                _cancellationTokenSource.Dispose();
+                _periodicAsyncTrigger.Dispose();
             }
-            catch { }
-
-            _cancellationTokenSource.Dispose();
-            _periodicAsyncTrigger.Dispose();
-
+            finally
+            {
+                _logger.LogInformation("FileTimelineViewModel disposed.");
+            }
             _isDisposed = true;
         }
     }
@@ -114,16 +127,28 @@ public class FileTimelineViewModel : NotifyPropertyChangedObject, IDisposable
 
     private void CleanFileTimelineCache(CancellationToken cancellationToken)
     {
-        foreach (var key in _fileTimelineCache.Keys.ToList())
-        {
-            cancellationToken.ThrowIfCancellationRequested();
+        _logger.LogInformation("Start CleanFileTimelineCache.");
 
-            if (_fileTimelineCache.TryGetValue(key, out var value)
-                && !value.TryGetTarget(out _))
+        try
+        {
+            foreach (var key in _fileTimelineCache.Keys.ToList())
             {
-                _fileTimelineCache.TryRemove(key, out _);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (_fileTimelineCache.TryGetValue(key, out var value)
+                    && !value.TryGetTarget(out _))
+                {
+                    _fileTimelineCache.TryRemove(key, out _);
+                    _logger.LogDebug("FileTimelineCacheEntry {Key} removed.", key);
+                }
             }
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "CleanFileTimelineCache error.");
+        }
+
+        _logger.LogInformation("CleanFileTimelineCache finished.");
     }
 
     #endregion FileTimelineCache
@@ -133,16 +158,21 @@ public class FileTimelineViewModel : NotifyPropertyChangedObject, IDisposable
         //TODO 可配置的缓存时间
         const int CacheLifetime = -10;
 
+        _logger.LogInformation("Set current file timeline for {Resource}.", resource);
+
         FileTimeline timeline;
         if (_fileTimelineCache.TryGetValue(resource.AbsolutePath, out var weakReference)
             && weakReference.TryGetTarget(out var cacheEntry)
             && cacheEntry is not null
             && cacheEntry.Time > DateTime.UtcNow.AddMinutes(CacheLifetime))
         {
+            _logger.LogDebug("Set current file timeline for {Resource} by cache {Cache}.", resource, cacheEntry);
             timeline = cacheEntry.Timeline;
         }
         else
         {
+            _logger.LogDebug("Set current file timeline for {Resource} by fetch.", resource);
+
             timeline = await _fileTimelineManager.GetFileTimelineAsync(resource, token);
             _fileTimelineCache[resource.AbsolutePath] = new(new(timeline, DateTime.UtcNow));
 
