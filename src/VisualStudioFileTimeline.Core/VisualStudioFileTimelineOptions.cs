@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace VisualStudioFileTimeline;
 
@@ -7,11 +8,17 @@ namespace VisualStudioFileTimeline;
 /// </summary>
 public record class VisualStudioFileTimelineOptions
 {
+    #region Private 字段
+
+    private string? _workingDirectory;
+
+    #endregion Private 字段
+
     #region Public 属性
 
     public LogLevel LogLevel { get; set; } = LogLevel.Warning;
 
-    public required string WorkingDirectory { get; init; }
+    public required string WorkingDirectory { get => _workingDirectory ??= GetDefaultConfigurationFilePath(); init => _workingDirectory = value; }
 
     #endregion Public 属性
 
@@ -34,6 +41,53 @@ public record class VisualStudioFileTimelineOptions
         DirectoryUtil.Ensure(workingDirectory);
         return workingDirectory;
     }
+
+    public async Task WriteToFileAsync(string? filePath = null)
+    {
+        filePath ??= GetDefaultConfigurationFilePath();
+        DirectoryUtil.Ensure(Path.GetDirectoryName(filePath));
+        using var fs = File.OpenWrite(filePath);
+        await JsonSerializer.SerializeAsync(fs, this);
+    }
+
+    #region 静态方法
+
+    public static string GetDefaultConfigurationFilePath()
+    {
+        return Path.Combine(GetDefaultWorkingDirectory(), "configuration.json");
+    }
+
+    public static string GetDefaultWorkingDirectory()
+    {
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VSFileTimeline");
+    }
+
+    public static VisualStudioFileTimelineOptions LoadFromDefaultConfigurationFile(out string? loadMessage) => LoadFromFile(GetDefaultConfigurationFilePath(), out loadMessage);
+
+    public static VisualStudioFileTimelineOptions LoadFromFile(string filePath, out string? loadMessage)
+    {
+        VisualStudioFileTimelineOptions? options = null;
+        loadMessage = null;
+
+        try
+        {
+            if (File.Exists(filePath))
+            {
+                options = JsonSerializer.Deserialize<VisualStudioFileTimelineOptions>(File.ReadAllText(filePath));
+            }
+        }
+        catch (Exception ex)
+        {
+            loadMessage = $"Load options from {filePath} failed. {ex}";
+        }
+
+        return options ?? new()
+        {
+            WorkingDirectory = GetDefaultWorkingDirectory(),
+        };
+    }
+
+    #endregion 静态方法
 
     #endregion Public 方法
 }

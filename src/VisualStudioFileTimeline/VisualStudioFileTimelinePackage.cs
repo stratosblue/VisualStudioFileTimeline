@@ -86,10 +86,7 @@ public sealed class VisualStudioFileTimelinePackage : AsyncPackage
     {
         await base.InitializeAsync(cancellationToken, progress);
 
-        var options = new VisualStudioFileTimelineOptions()
-        {
-            WorkingDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VSFileTimeline")
-        };
+        var options = VisualStudioFileTimelineOptions.LoadFromDefaultConfigurationFile(out var optionsLoadMessage);
 
         options.EnsureWorkingDirectory();
 
@@ -109,6 +106,11 @@ public sealed class VisualStudioFileTimelinePackage : AsyncPackage
         GlobalProvider = services.BuildServiceProvider();
 
         Logger = GlobalProvider.GetRequiredService<ILoggerFactory>().CreateLogger<VisualStudioFileTimelinePackage>();
+
+        if (!string.IsNullOrWhiteSpace(optionsLoadMessage))
+        {
+            Logger.LogError(optionsLoadMessage);
+        }
 
         //HACK 好像第一次加载很慢？
         Logger.LogDebug("Package services build completed.");
