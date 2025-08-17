@@ -10,6 +10,7 @@ using Microsoft.VisualStudio.Shell.Interop;
 using Serilog;
 using Serilog.Events;
 using VisualStudioFileTimeline.Commands;
+using VisualStudioFileTimeline.Internal.Serilog;
 using VisualStudioFileTimeline.Providers.Default;
 using VisualStudioFileTimeline.Providers.VsCode;
 using VisualStudioFileTimeline.View;
@@ -154,11 +155,12 @@ public sealed class VisualStudioFileTimelinePackage : AsyncPackage
 
         return new LoggerConfiguration()
             .Enrich.FromLogContext()
+            .Enrich.With<ThreadInfoEnricher>()
             .WriteTo.Async(c =>
             {
                 c.File(path: logFilePath,
                        restrictedToMinimumLevel: level,
-                       outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
+                       outputTemplate: "[{ProcessId}] {Timestamp:yyyy-MM-dd HH:mm:ss.fff} {ThreadInfo} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
                        fileSizeLimitBytes: 1024 * 1024 * 100,
                        rollOnFileSizeLimit: true,
                        retainedFileCountLimit: 5,
