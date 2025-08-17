@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using VisualStudioFileTimeline.Internal;
@@ -24,6 +25,8 @@ internal sealed class RunningDocTableEventsListener
 
     private readonly FileTimelineViewModel _fileTimelineViewModel;
 
+    private readonly ILogger _logger;
+
     private readonly PeriodicAsyncTrigger _periodicAsyncTrigger;
 
     private readonly RunningDocumentTable _runningDocumentTable;
@@ -39,13 +42,15 @@ internal sealed class RunningDocTableEventsListener
     #region Public 构造函数
 
     public RunningDocTableEventsListener(FileTimelineManager fileTimelineManager,
-                                         FileTimelineViewModel fileTimelineViewModel)
+                                         FileTimelineViewModel fileTimelineViewModel,
+                                         ILogger<RunningDocTableEventsListener> logger)
     {
+        _fileTimelineManager = fileTimelineManager ?? throw new ArgumentNullException(nameof(fileTimelineManager));
+        _fileTimelineViewModel = fileTimelineViewModel ?? throw new ArgumentNullException(nameof(fileTimelineViewModel));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
         _runningDocumentTable = new RunningDocumentTable();
         _cookie = _runningDocumentTable.Advise(this);
-
-        _fileTimelineManager = fileTimelineManager;
-        _fileTimelineViewModel = fileTimelineViewModel;
 
         _cancellationTokenSource = new CancellationTokenSource();
         _cancellationToken = _cancellationTokenSource.Token;
@@ -65,16 +70,25 @@ internal sealed class RunningDocTableEventsListener
     {
         if (!_isDisposed)
         {
-            _runningDocumentTable.Unadvise(_cookie);
+            _logger.LogInformation("RunningDocTableEventsListener disposing.");
 
             try
             {
-                _cancellationTokenSource.Cancel();
-            }
-            catch { }
+                _runningDocumentTable.Unadvise(_cookie);
 
-            _cancellationTokenSource.Dispose();
-            _periodicAsyncTrigger.Dispose();
+                try
+                {
+                    _cancellationTokenSource.Cancel();
+                }
+                catch { }
+
+                _cancellationTokenSource.Dispose();
+                _periodicAsyncTrigger.Dispose();
+            }
+            finally
+            {
+                _logger.LogInformation("RunningDocTableEventsListener disposed.");
+            }
 
             _isDisposed = true;
         }
@@ -90,46 +104,86 @@ internal sealed class RunningDocTableEventsListener
 
     public int OnAfterSave(uint docCookie)
     {
-        ThrowIfDisposed();
+        _logger.LogInformation("Docuemnt [{Cookie}] OnAfterSave", docCookie);
+        Uri? resource = null;
 
-        ThreadHelper.ThrowIfNotOnUIThread();
-
-        if (_savingFilesMap.TryGetValue(docCookie, out var shouldAddHistory)
-            && shouldAddHistory)
+        try
         {
-            var runningDocumentInfo = _runningDocumentTable.GetDocumentInfo(docCookie);
-            var resource = new Uri(runningDocumentInfo.Moniker);
+            ThrowIfDisposed();
 
-            //异步保存
-            _ = Task.Run(async () =>
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            if (_savingFilesMap.TryGetValue(docCookie, out var shouldAddHistory)
+                && shouldAddHistory)
             {
-                await Task.Yield();
-                var descriptor = new FileHistoryDescriptor(resource, DateTime.Now, null);
-                var savedFileTimelineItem = await _fileTimelineManager.AddHistoryAsync(descriptor, _cancellationToken);
-                _fileTimelineViewModel.UpdateCurrentFileTimelineItems(savedFileTimelineItem);
-            });
+                var runningDocumentInfo = _runningDocumentTable.GetDocumentInfo(docCookie);
+                resource = new Uri(runningDocumentInfo.Moniker);
+
+                _logger.LogInformation("Docuemnt [{Cookie}] start add history for {Moniker}.", docCookie, resource);
+
+                //异步保存
+                _ = Task.Run(async () =>
+                {
+                    await Task.Yield();
+
+                    _logger.LogInformation("Docuemnt [{Cookie}] add history for {Moniker}.", docCookie, resource);
+                    try
+                    {
+                        var descriptor = new FileHistoryDescriptor(resource, DateTime.Now, null);
+                        var savedFileTimelineItem = await _fileTimelineManager.AddHistoryAsync(descriptor, _cancellationToken);
+                        _fileTimelineViewModel.UpdateCurrentFileTimelineItems(savedFileTimelineItem);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Docuemnt [{Cookie}] add history for {Moniker} failed.", docCookie, resource);
+                    }
+                });
+            }
+            else
+            {
+                _logger.LogInformation("Docuemnt [{Cookie}] do not need process.", docCookie);
+            }
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Docuemnt [{Cookie}] {Moniker} OnAfterSave error.", docCookie, resource);
+        }
+
         return 0;
     }
 
     public int OnBeforeDocumentWindowShow(uint docCookie, int fFirstShow, IVsWindowFrame pFrame)
     {
-        ThrowIfDisposed();
+        _logger.LogInformation("Docuemnt [{Cookie}] OnBeforeDocumentWindowShow", docCookie);
+        object? pszMkDocument = null;
 
-        ThreadHelper.ThrowIfNotOnUIThread();
-
-        if (pFrame.GetProperty((int)__VSFPROPID.VSFPROPID_pszMkDocument, out var pszMkDocument) != 0
-            || pszMkDocument is not string moniker)
+        try
         {
-            return 0;
-        }
+            ThrowIfDisposed();
 
-        if (VisualStudioShellUtilities.IsProvisionalOpened(pFrame))   //临时打开，不做处理
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            if (pFrame.GetProperty((int)__VSFPROPID.VSFPROPID_pszMkDocument, out pszMkDocument) != 0
+                || pszMkDocument is not string moniker)
+            {
+                _logger.LogInformation("Docuemnt [{Cookie}] failed to obtain moniker, do not set view for it.", docCookie);
+                return 0;
+            }
+
+            if (VisualStudioShellUtilities.IsProvisionalOpened(pFrame))   //临时打开，不做处理
+            {
+                _logger.LogInformation("Docuemnt [{Cookie}] do not set view for provisional docuemnt.", docCookie);
+                return 0;
+            }
+
+            _logger.LogInformation("Docuemnt [{Cookie}] start set view for docuemnt {Moniker}.", docCookie, pszMkDocument);
+
+            _ = _fileTimelineViewModel.ChangeCurrentFileAsync(new Uri(moniker), _cancellationToken);
+        }
+        catch (Exception ex)
         {
-            return 0;
+            _logger.LogError(ex, "Docuemnt [{Cookie}] {Moniker} OnBeforeDocumentWindowShow error.", docCookie, pszMkDocument);
         }
-
-        _ = _fileTimelineViewModel.ChangeCurrentFileAsync(new Uri(moniker), _cancellationToken);
 
         return 0;
     }
@@ -138,28 +192,41 @@ internal sealed class RunningDocTableEventsListener
 
     public int OnBeforeSave(uint docCookie)
     {
-        ThrowIfDisposed();
+        _logger.LogInformation("Docuemnt [{Cookie}] OnBeforeSave", docCookie);
 
-        _periodicAsyncTrigger.TryToTrigger();
-
-        ThreadHelper.ThrowIfNotOnUIThread();
-
-        var runningDocumentInfo = _runningDocumentTable.GetDocumentInfo(docCookie);
-
-        if (runningDocumentInfo.DocData is IVsPersistDocData docData
-            && docData.IsDocDataDirty(out var isDirty) == 0
-            && isDirty == 0)
+        try
         {
-            return 0;
+            ThrowIfDisposed();
+
+            _periodicAsyncTrigger.TryToTrigger();
+
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            var runningDocumentInfo = _runningDocumentTable.GetDocumentInfo(docCookie);
+
+            if (runningDocumentInfo.DocData is IVsPersistDocData docData
+                && docData.IsDocDataDirty(out var isDirty) == 0
+                && isDirty == 0)
+            {
+                _logger.LogInformation("Docuemnt [{Cookie}] cannot get dirty info, do not process docuemnt {Moniker}.", docCookie, runningDocumentInfo.Moniker);
+                return 0;
+            }
+
+            //仅有修改的需要保存为记录
+            //由于需要在保存完成后进行历史记录，在保存中检查是否有修改，并将路径加入到一个查询字典，以在保存后可以检查文件是否需要进行历史记录
+            //HACK 保存完成后再进行备份是否合理？
+
+            var savingFilesQueueItem = new SavingFilesQueueItem(docCookie, DateTime.UtcNow);
+
+            _logger.LogInformation("Docuemnt [{Cookie}] is dirty. {Moniker} needs to be processed.", docCookie, runningDocumentInfo.Moniker);
+
+            _savingFilesQueue.Enqueue(savingFilesQueueItem);
+            _savingFilesMap[docCookie] = true;
         }
-
-        //仅有修改的需要保存为记录
-        //由于需要在保存完成后进行历史记录，在保存中检查是否有修改，并将路径加入到一个查询字典，以在保存后可以检查文件是否需要进行历史记录
-        //HACK 保存完成后再进行备份是否合理？
-
-        _savingFilesQueue.Enqueue(new(docCookie, DateTime.UtcNow));
-        _savingFilesMap[docCookie] = true;
-
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Docuemnt [{Cookie}] OnBeforeSave error.", docCookie);
+        }
         return 0;
     }
 
@@ -169,6 +236,8 @@ internal sealed class RunningDocTableEventsListener
 
     private void CleanSavingFilesMap(CancellationToken cancellationToken)
     {
+        _logger.LogInformation("Start CleanSavingFilesMap.");
+
         var interval = TimeSpan.FromMinutes(3);
 
         try
@@ -181,11 +250,19 @@ internal sealed class RunningDocTableEventsListener
                 {
                     break;
                 }
+
                 _savingFilesQueue.TryDequeue(out item);
                 _savingFilesMap.TryRemove(item.DocCookie, out _);
+
+                _logger.LogDebug("SavingFilesQueueItem {Item} removed.", item);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "CleanSavingFilesMap error.");
+        }
+
+        _logger.LogInformation("CleanSavingFilesMap finished.");
     }
 
     private void ThrowIfDisposed()
