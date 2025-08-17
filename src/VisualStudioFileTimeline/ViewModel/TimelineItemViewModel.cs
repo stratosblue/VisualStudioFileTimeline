@@ -64,4 +64,11 @@ public class TimelineItemViewModel(FileTimeline timeline,
     #endregion Commands
 
     #endregion Public 属性
+
+    #region Public 方法
+
+    /// <inheritdoc/>
+    public override string ToString() => RawItem.ToString();
+
+    #endregion Public 方法
 }

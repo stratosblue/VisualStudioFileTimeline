@@ -121,7 +121,14 @@ public class FileTimelineViewModel : NotifyPropertyChangedObject, IDisposable
 
     #region FileTimelineCache
 
-    private record class FileTimelineCacheEntry(FileTimeline Timeline, DateTime Time);
+    private record class FileTimelineCacheEntry(FileTimeline Timeline, DateTime Time)
+    {
+        /// <inheritdoc/>
+        public override string ToString()
+        {
+            return $"{Timeline.FileName}[{Time}]";
+        }
+    };
 
     private readonly ConcurrentDictionary<string, WeakReference<FileTimelineCacheEntry>> _fileTimelineCache = new(StringComparer.Ordinal);
 

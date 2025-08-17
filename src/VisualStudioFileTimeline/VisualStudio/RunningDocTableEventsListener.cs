@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using Microsoft.VisualStudio.Threading;
 using VisualStudioFileTimeline.Internal;
 using VisualStudioFileTimeline.ViewModel;
 
@@ -122,10 +123,8 @@ internal sealed class RunningDocTableEventsListener
                 _logger.LogInformation("Docuemnt [{Cookie}] start add history for {Moniker}.", docCookie, resource);
 
                 //异步保存
-                _ = Task.Run(async () =>
+                Task.Run(async () =>
                 {
-                    await Task.Yield();
-
                     _logger.LogInformation("Docuemnt [{Cookie}] add history for {Moniker}.", docCookie, resource);
                     try
                     {
@@ -137,7 +136,7 @@ internal sealed class RunningDocTableEventsListener
                     {
                         _logger.LogError(ex, "Docuemnt [{Cookie}] add history for {Moniker} failed.", docCookie, resource);
                     }
-                });
+                }).Forget();
             }
             else
             {
@@ -176,9 +175,12 @@ internal sealed class RunningDocTableEventsListener
                 return 0;
             }
 
-            _logger.LogInformation("Docuemnt [{Cookie}] start set view for docuemnt {Moniker}.", docCookie, pszMkDocument);
+            _logger.LogInformation("Docuemnt [{Cookie}] start set view for docuemnt {Moniker}.", docCookie, moniker);
 
-            _ = _fileTimelineViewModel.ChangeCurrentFileAsync(new Uri(moniker), _cancellationToken);
+            Task.Run(() =>
+            {
+                return _fileTimelineViewModel.ChangeCurrentFileAsync(new Uri(moniker), _cancellationToken);
+            }, _cancellationToken).Forget();
         }
         catch (Exception ex)
         {

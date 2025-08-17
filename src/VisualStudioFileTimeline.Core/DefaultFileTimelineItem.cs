@@ -8,4 +8,10 @@ public record DefaultFileTimelineItem(string Title,
     : IFileTimelineItem
 {
     public string Identifier => FilePath;
+
+    /// <inheritdoc/>
+    public override string ToString()
+    {
+        return $"[{Time}] {Title}({FilePath}) ";
+    }
 };
