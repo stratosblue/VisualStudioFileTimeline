@@ -1,8 +1,14 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.IO;
+using System.Runtime.InteropServices;
+using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using Serilog;
+using Serilog.Events;
 using VisualStudioFileTimeline.Commands;
 using VisualStudioFileTimeline.Providers.Default;
 using VisualStudioFileTimeline.Providers.VsCode;
@@ -10,6 +16,8 @@ using VisualStudioFileTimeline.View;
 using VisualStudioFileTimeline.ViewModel;
 using VisualStudioFileTimeline.VisualStudio;
 using Task = System.Threading.Tasks.Task;
+
+[assembly: ProvideBindingRedirection(AssemblyName = "Serilog", NewVersion = "4.3.0.0", OldVersionLowerBound = "4.0.0.0", OldVersionUpperBound = "4.2.0.0")]
 
 namespace VisualStudioFileTimeline;
 
@@ -23,9 +31,17 @@ namespace VisualStudioFileTimeline;
 [ProvideToolWindow(typeof(TimelineToolWindow))]
 public sealed class VisualStudioFileTimelinePackage : AsyncPackage
 {
+    #region Private 字段
+
+    private Serilog.ILogger _innerLogger = Serilog.Core.Logger.None;
+
+    #endregion Private 字段
+
     #region Public 属性
 
     public IServiceProvider? GlobalProvider { get; private set; }
+
+    public Microsoft.Extensions.Logging.ILogger Logger { get; private set; } = NullLogger.Instance;
 
     #endregion Public 属性
 
@@ -45,25 +61,56 @@ public sealed class VisualStudioFileTimelinePackage : AsyncPackage
     /// <inheritdoc/>
     protected override object GetService(Type serviceType)
     {
-        if (GlobalProvider?.GetService(serviceType) is { } service)
+        try
         {
+            if (GlobalProvider?.GetService(serviceType) is { } service)
+            {
+                Logger.LogDebug("Get service {ServiceType} from GlobalProvider success. {Service}", serviceType, service);
+                return service;
+            }
+
+            service = base.GetService(serviceType);
+            Logger.LogDebug("Get service {ServiceType} from package base. {Service}", serviceType, service);
             return service;
         }
-        return base.GetService(serviceType);
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Get {ServiceType} service from package failed", serviceType);
+            throw;
+        }
     }
 
     /// <inheritdoc/>
     protected override async Task InitializeAsync(CancellationToken cancellationToken, IProgress<ServiceProgressData> progress)
     {
-        //Debugger.Launch();
-
         await base.InitializeAsync(cancellationToken, progress);
+
+        var options = new VisualStudioFileTimelineOptions()
+        {
+            WorkingDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VSFileTimeline")
+        };
+
+        options.EnsureWorkingDirectory();
+
+#if DEBUG
+        options.LogLevel = LogLevel.Trace;
+#endif
+
+        if (Interlocked.Exchange(ref _innerLogger, CreateSerilogLogger(options)) is IDisposable disposableLogger)
+        {
+            disposableLogger.Dispose();
+        }
 
         var services = new ServiceCollection();
 
-        InitializeServices(services);
+        InitializeServices(services, options);
 
         GlobalProvider = services.BuildServiceProvider();
+
+        Logger = GlobalProvider.GetRequiredService<ILoggerFactory>().CreateLogger<VisualStudioFileTimelinePackage>();
+
+        //HACK 好像第一次加载很慢？
+        Logger.LogDebug("Package services build completed.");
 
         //获取以保证初始化
         GlobalProvider.GetRequiredService<RunningDocTableEventsListener>();
@@ -74,27 +121,81 @@ public sealed class VisualStudioFileTimelinePackage : AsyncPackage
 
     #endregion Package Members
 
-    #region Private 方法
-    
-    private void InitializeServices(IServiceCollection serviceCollection)
+    #region Protected 方法
+
+    protected override void Dispose(bool disposing)
     {
-        AddFileTimelineProvider<LocalHistoryFileTimelineProvider>(serviceCollection);
-        AddFileTimelineProvider<VsCodeFileTimelineProvider>(serviceCollection);
+        Logger.LogDebug("Package disposing.");
 
-        serviceCollection.TryAddSingleton<FileTimelineViewModel>();
-        serviceCollection.TryAddSingleton<TimelineToolWindowViewModel>();
+        base.Dispose(disposing);
+        (GlobalProvider as IDisposable)?.Dispose();
 
-        serviceCollection.TryAddSingleton<VisualStudioFileTimelinePackage>(this);
+        Logger.LogDebug("Package disposed.");
+        (_innerLogger as IDisposable)?.Dispose();
+    }
 
-        serviceCollection.TryAddSingleton<FileTimelineManager>();
-        serviceCollection.TryAddSingleton<RunningDocTableEventsListener>();
+    #endregion Protected 方法
 
-        static void AddFileTimelineProvider<T>(IServiceCollection serviceCollection)
+    #region Private 方法
+
+    private static Serilog.Core.Logger CreateSerilogLogger(VisualStudioFileTimelineOptions options)
+    {
+        var logFilePath = Path.Combine(options.EnsureWorkingDirectory("Logs"), "logs.log");
+        var level = options.LogLevel switch
+        {
+            LogLevel.Trace => LogEventLevel.Verbose,
+            LogLevel.Debug => LogEventLevel.Debug,
+            LogLevel.Information => LogEventLevel.Information,
+            LogLevel.Warning => LogEventLevel.Warning,
+            LogLevel.Error => LogEventLevel.Error,
+            LogLevel.Critical => LogEventLevel.Fatal,
+            _ => LogEventLevel.Warning
+        };
+
+        return new LoggerConfiguration()
+            .Enrich.FromLogContext()
+            .WriteTo.Async(c =>
+            {
+                c.File(path: logFilePath,
+                       restrictedToMinimumLevel: level,
+                       outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
+                       fileSizeLimitBytes: 1024 * 1024 * 100,
+                       rollOnFileSizeLimit: true,
+                       retainedFileCountLimit: 5,
+                       encoding: Encoding.UTF8,
+                       retainedFileTimeLimit: TimeSpan.FromDays(30));
+            }, 50)
+            .MinimumLevel.Is(level)
+            .CreateLogger();
+    }
+
+    private void InitializeServices(IServiceCollection services, VisualStudioFileTimelineOptions options)
+    {
+        AddFileTimelineProvider<LocalHistoryFileTimelineProvider>(services);
+        AddFileTimelineProvider<VsCodeFileTimelineProvider>(services);
+
+        services.AddLogging(builder =>
+        {
+            builder.SetMinimumLevel(options.LogLevel);
+            builder.AddSerilog(_innerLogger, dispose: false);
+        });
+
+        services.TryAddSingleton<VisualStudioFileTimelineOptions>(options);
+
+        services.TryAddSingleton<FileTimelineViewModel>();
+        services.TryAddSingleton<TimelineToolWindowViewModel>();
+
+        services.TryAddSingleton<VisualStudioFileTimelinePackage>(this);
+
+        services.TryAddSingleton<FileTimelineManager>();
+        services.TryAddSingleton<RunningDocTableEventsListener>();
+
+        static void AddFileTimelineProvider<T>(IServiceCollection services)
             where T : class, IFileTimelineProvider, IFileTimelineStore
         {
-            serviceCollection.TryAddSingleton<T>();
-            serviceCollection.AddSingleton<IFileTimelineProvider>(serviceProvider => serviceProvider.GetRequiredService<T>());
-            serviceCollection.AddSingleton<IFileTimelineStore>(serviceProvider => serviceProvider.GetRequiredService<T>());
+            services.TryAddSingleton<T>();
+            services.AddSingleton<IFileTimelineProvider>(serviceProvider => serviceProvider.GetRequiredService<T>());
+            services.AddSingleton<IFileTimelineStore>(serviceProvider => serviceProvider.GetRequiredService<T>());
         }
     }
 

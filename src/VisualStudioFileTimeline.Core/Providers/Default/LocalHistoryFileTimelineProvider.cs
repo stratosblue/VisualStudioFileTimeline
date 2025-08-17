@@ -31,11 +31,20 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
 
     public string? Description { get; } = Resources.ProviderDescription_LocalHistory;
 
-    public string LocalHistoryPath { get; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VSFileTimeline", "History");
+    public string LocalHistoryPath { get; }
 
     public string Name { get; } = "localHistory";
 
     #endregion Public 属性
+
+    #region Public 构造函数
+
+    public LocalHistoryFileTimelineProvider(VisualStudioFileTimelineOptions options)
+    {
+        LocalHistoryPath = options.EnsureWorkingDirectory("History");
+    }
+
+    #endregion Public 构造函数
 
     #region Public 方法
 
