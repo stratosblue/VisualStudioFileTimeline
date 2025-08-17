@@ -3,6 +3,7 @@ using System.IO.Extensions;
 using System.IO.Hashing;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using VisualStudioFileTimeline.Utils;
 
 namespace VisualStudioFileTimeline.Providers.Default;
@@ -10,6 +11,8 @@ namespace VisualStudioFileTimeline.Providers.Default;
 public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTimelineStore
 {
     #region Private 字段
+
+    private readonly ILogger _logger;
 
     /// <summary>
     /// 合并窗口
@@ -39,8 +42,15 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
 
     #region Public 构造函数
 
-    public LocalHistoryFileTimelineProvider(VisualStudioFileTimelineOptions options)
+    public LocalHistoryFileTimelineProvider(VisualStudioFileTimelineOptions options,
+                                            ILogger<LocalHistoryFileTimelineProvider> logger)
     {
+        if (options is null)
+        {
+            throw new ArgumentNullException(nameof(options));
+        }
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
         LocalHistoryPath = options.EnsureWorkingDirectory("History");
     }
 
@@ -62,6 +72,8 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
         var resource = descriptor.Resource;
         var sourceFile = resource.AbsolutePath;
 
+        _logger.LogInformation("Add history for {File}.", sourceFile);
+
         var metadataInfo = await GetMetadataInfoAsync(sourceFile, cancellationToken);
         var metadata = metadataInfo.Metadata;
         var historyFolderPath = metadataInfo.HistoryFolderPath;
@@ -78,6 +90,8 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
             && entryInfo.Timestamp >= currentTimestamp - _mergeWindow.TotalMilliseconds)    //合并
         {
             //合并到上一次保存
+            _logger.LogInformation("Merge history for {File} to last entry {EntryFile}.", descriptor, historyFileName);
+
             entryInfo.Timestamp = currentTimestamp;
             historyFilePath = Path.Combine(historyFolderPath, historyFileName);
         }
@@ -85,6 +99,8 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
         {
             var fileName = SequenceFileNameUtil.GenerateName(Path.GetExtension(sourceFile));
             historyFilePath = Path.Combine(historyFolderPath, fileName);
+
+            _logger.LogInformation("Add history for {File} with file {EntryFile}.", descriptor, fileName);
 
             var newEntryInfo = new FileTimelineMetadataEntryInfo(descriptor.Source)
             {
@@ -94,6 +110,8 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
             //TODO 清理
             metadata.Entries.Add(fileName, newEntryInfo);
         }
+
+        _logger.LogTrace("Copy history from {SourceFile} to {DestinationFile}.", sourceFile, historyFilePath);
 
         File.Copy(sourceFile, historyFilePath, true);
         File.SetCreationTimeUtc(historyFilePath, DateTimeOffset.FromUnixTimeMilliseconds(currentTimestamp).DateTime);
@@ -111,6 +129,8 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
     public async Task<IEnumerable<IFileTimelineItem>> GetAsync(Uri resource, CancellationToken cancellationToken = default)
     {
         var sourceFile = resource.AbsolutePath;
+
+        _logger.LogInformation("Get history for {File}.", sourceFile);
 
         var metadataInfo = await GetMetadataInfoAsync(sourceFile, cancellationToken);
         var metadata = metadataInfo.Metadata;
@@ -155,26 +175,36 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
         {
             _ = Task.Run(async () =>
             {
-                //移除多余的
-                foreach (var key in metadata.Entries.Keys.ToList())
+                _logger.LogInformation("Clean metadata info for {Identifier}.", metadataInfo.Identifier);
+                try
                 {
-                    if (!result.Any(m => Path.GetFileName(m.FilePath) == key))
+                    //移除多余的
+                    foreach (var key in metadata.Entries.Keys.ToList())
                     {
-                        metadata.Entries.Remove(key);
+                        if (!result.Any(m => Path.GetFileName(m.FilePath) == key))
+                        {
+                            metadata.Entries.Remove(key);
+                        }
                     }
+
+                    //添加缺少的
+                    foreach (var item in result)
+                    {
+                        var fileName = Path.GetFileName(item.FilePath);
+                        if (!metadata.Entries.ContainsKey(fileName))
+                        {
+                            metadata.Entries.Add(fileName, new(null) { Timestamp = item.Time.ToUnixTimeMilliseconds() });
+                        }
+                    }
+
+                    await SaveMetadataAsync(metadataInfo, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Clean metadata info for {Identifier} failed.", metadataInfo.Identifier);
                 }
 
-                //添加缺少的
-                foreach (var item in result)
-                {
-                    var fileName = Path.GetFileName(item.FilePath);
-                    if (!metadata.Entries.ContainsKey(fileName))
-                    {
-                        metadata.Entries.Add(fileName, new(null) { Timestamp = item.Time.ToUnixTimeMilliseconds() });
-                    }
-                }
-
-                await SaveMetadataAsync(metadataInfo, CancellationToken.None);
+                _logger.LogInformation("Clean metadata info for {Identifier} finished.", metadataInfo.Identifier);
             });
         }
 
@@ -273,19 +303,24 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
 
     private async Task<MetadataInfo> GetMetadataInfoAsync(string sourceFile, CancellationToken cancellationToken)
     {
+        _logger.LogTrace("Get metadata info for {File}.", sourceFile);
+
         var historyFolderPath = GetHistoryFolderPath(sourceFile, out var identifier);
-        var entriesFilePath = GetMetadataFilePath(historyFolderPath);
+        var metadataFilePath = GetMetadataFilePath(historyFolderPath);
         FileTimelineMetadata? metadata = null;
 
-        if (File.Exists(entriesFilePath))
+        try
         {
-            using var stream = File.Open(entriesFilePath, FileMode.Open);
-
-            try
+            if (File.Exists(metadataFilePath))
             {
+                using var stream = File.Open(metadataFilePath, FileMode.Open);
+
                 metadata = await JsonSerializer.DeserializeAsync<FileTimelineMetadata>(stream, JsonSerializerOptions.Default, cancellationToken);
             }
-            catch { }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Deserialize metadata info file {MetadataFile} for {File} failed.", metadataFilePath, sourceFile);
         }
 
         metadata ??= new(Version, sourceFile, []);
@@ -295,17 +330,27 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
 
     private async Task SaveMetadataAsync(MetadataInfo metadataInfo, CancellationToken cancellationToken)
     {
-        var historyFolderPath = metadataInfo.HistoryFolderPath;
-        DirectoryUtil.Ensure(historyFolderPath);
-        var entriesFilePath = GetMetadataFilePath(historyFolderPath);
+        _logger.LogInformation("Start save metadata for {Identifier}.", metadataInfo.Identifier);
+        try
+        {
+            var historyFolderPath = metadataInfo.HistoryFolderPath;
+            DirectoryUtil.Ensure(historyFolderPath);
+            var metadataFilePath = GetMetadataFilePath(historyFolderPath);
 
-        using var stream = File.Open(entriesFilePath, FileMode.OpenOrCreate);
+            using var stream = File.Open(metadataFilePath, FileMode.OpenOrCreate);
 
-        stream.SeekToBegin();
-        stream.SetLength(0);
+            stream.SeekToBegin();
+            stream.SetLength(0);
 
-        await JsonSerializer.SerializeAsync(stream, metadataInfo.Metadata, JsonSerializerOptions.Default, cancellationToken);
-        await stream.FlushAsync(cancellationToken);
+            await JsonSerializer.SerializeAsync(stream, metadataInfo.Metadata, JsonSerializerOptions.Default, cancellationToken);
+            await stream.FlushAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Save metadata for {Identifier} failed.", metadataInfo.Identifier);
+        }
+
+        _logger.LogInformation("Save metadata for {Identifier} finished.", metadataInfo.Identifier);
     }
 
     #endregion Private 方法
