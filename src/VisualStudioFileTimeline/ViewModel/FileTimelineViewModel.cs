@@ -27,6 +27,10 @@ public class FileTimelineViewModel : NotifyPropertyChangedObject, IDisposable
 
     #region Public 属性
 
+    public bool IsToolWindowVisible => ToolWindowViewModel.IsVisible;
+
+    public AsyncPackage Package { get; }
+
     public TimelineToolWindowViewModel ToolWindowViewModel { get; }
 
     #endregion Public 属性
@@ -35,10 +39,12 @@ public class FileTimelineViewModel : NotifyPropertyChangedObject, IDisposable
 
     public FileTimelineViewModel(FileTimelineManager fileTimelineManager,
                                  TimelineToolWindowViewModel toolWindowViewModel,
+                                 AsyncPackage package,
                                  ILogger<FileTimelineViewModel> logger)
     {
         _fileTimelineManager = fileTimelineManager ?? throw new ArgumentNullException(nameof(fileTimelineManager));
         ToolWindowViewModel = toolWindowViewModel ?? throw new ArgumentNullException(nameof(toolWindowViewModel));
+        Package = package ?? throw new ArgumentNullException(nameof(package));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         _cancellationTokenSource = new CancellationTokenSource();
@@ -67,6 +73,22 @@ public class FileTimelineViewModel : NotifyPropertyChangedObject, IDisposable
         _currentResource = resource;
 
         await SetCurrentFileTimelineAsync(resource, token);
+    }
+
+    public async Task ChangeToActiveDocumentFileAsync()
+    {
+        ThrowIfDisposed();
+
+        _logger.LogDebug("Change to active document file.");
+
+        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+        if (await Package.GetServiceAsync(typeof(EnvDTE.DTE)) is EnvDTE.DTE dte
+            && dte.ActiveDocument is { } activeDocument)
+        {
+            _logger.LogDebug("Current active document file is {File}.", activeDocument.FullName);
+            await ChangeCurrentFileAsync(new(activeDocument.FullName), _cancellationToken);
+        }
     }
 
     public async Task ReloadCurrentFileAsync(CancellationToken token)

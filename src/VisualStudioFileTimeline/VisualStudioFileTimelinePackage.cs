@@ -184,12 +184,14 @@ public sealed class VisualStudioFileTimelinePackage : AsyncPackage
             builder.AddSerilog(_innerLogger, dispose: false);
         });
 
+        services.TryAddSingleton<Package>(this);
+        services.TryAddSingleton<AsyncPackage>(this);
+        services.TryAddSingleton<VisualStudioFileTimelinePackage>(this);
+
         services.TryAddSingleton<VisualStudioFileTimelineOptions>(options);
 
         services.TryAddSingleton<FileTimelineViewModel>();
         services.TryAddSingleton<TimelineToolWindowViewModel>();
-
-        services.TryAddSingleton<VisualStudioFileTimelinePackage>(this);
 
         services.TryAddSingleton<FileTimelineManager>();
         services.TryAddSingleton<RunningDocTableEventsListener>();

@@ -160,6 +160,12 @@ internal sealed class RunningDocTableEventsListener
         {
             ThrowIfDisposed();
 
+            if (!_fileTimelineViewModel.IsToolWindowVisible)
+            {
+                _logger.LogInformation("Docuemnt [{Cookie}] do not set view because of tool window is invisible.", docCookie);
+                return 0;
+            }
+
             ThreadHelper.ThrowIfNotOnUIThread();
 
             if (pFrame.GetProperty((int)__VSFPROPID.VSFPROPID_pszMkDocument, out pszMkDocument) != 0

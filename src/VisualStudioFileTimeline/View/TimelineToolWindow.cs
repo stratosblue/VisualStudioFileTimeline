@@ -34,7 +34,7 @@ public class TimelineToolWindow : ToolWindowPane
 
         var viewModel = ((AsyncPackage)Package).GetRequiredService<FileTimelineViewModel>();
 
-        _content.DataContext = viewModel.ToolWindowViewModel;
+        _content.ViewModel = viewModel.ToolWindowViewModel;
     }
 
     #endregion Protected 方法

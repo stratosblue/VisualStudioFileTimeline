@@ -25,6 +25,8 @@ public class TimelineToolWindowViewModel : NotifyPropertyChangedObject
 
     #region Public 属性
 
+    public bool IsVisible { get; set; }
+
     public string? FileName
     {
         get => _fileName;
