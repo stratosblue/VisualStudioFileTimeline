@@ -14,6 +14,14 @@ public abstract class NotifyPropertyChangedObject : INotifyPropertyChanged
 
     #region Protected 方法
 
+    protected void RaisePropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        if (PropertyChanged is { } propertyChanged)
+        {
+            propertyChanged.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
     protected void SetProperty<T>(ref T value, T newValue, [CallerMemberName] string? propertyName = null)
     {
         if (PropertyChanged is { } propertyChanged

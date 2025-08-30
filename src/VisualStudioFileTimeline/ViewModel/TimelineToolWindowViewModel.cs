@@ -165,6 +165,8 @@ public class TimelineToolWindowViewModel : NotifyPropertyChangedObject
                 }).Task.Forget();
             }
         }, static _ => true, package.JoinableTaskFactory);
+
+        StartItemsTimeRefreshLoop();
     }
 
     #endregion Public 构造函数
@@ -244,4 +246,74 @@ public class TimelineToolWindowViewModel : NotifyPropertyChangedObject
     }
 
     #endregion Public 方法
+
+    #region Private 方法
+
+    private async Task RefreshItemsTimeAsync(CancellationToken cancellationToken)
+    {
+        await Package.JoinableTaskFactory.RunAsync(async () =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            _logger.LogTrace("Switch to main thread for items time refresh.");
+            try
+            {
+                await Package.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+
+                foreach (var item in _items)
+                {
+                    item.RefreshTime();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Items time refresh failed.");
+            }
+            return Task.CompletedTask;
+        });
+    }
+
+    private void StartItemsTimeRefreshLoop()
+    {
+        var cancellationToken = Package.DisposalToken;
+
+        Task.Run(async () =>
+        {
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    //每分钟刷新一次列表展示的历史记录时间
+                    await Task.Delay(TimeSpan.FromSeconds(60), cancellationToken);
+
+                    if (!IsVisible)
+                    {
+                        _logger.LogTrace("Items time refresh skiped because of invisible.");
+                        continue;
+                    }
+
+                    try
+                    {
+                        _logger.LogTrace("Start refresh items time.");
+                        await RefreshItemsTimeAsync(cancellationToken);
+                        _logger.LogTrace("Refresh items time finished.");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Items time refresh error.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                _logger.LogError(ex, "Items time refresh loop error.");
+            }
+        }).Forget();
+    }
+
+    #endregion Private 方法
 }

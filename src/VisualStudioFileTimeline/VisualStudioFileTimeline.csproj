@@ -3,7 +3,7 @@
     <TargetFramework>net472</TargetFramework>
     <OutputType>Library</OutputType>
 
-    <Version>0.0.4</Version>
+    <Version>0.0.5</Version>
 
     <UseWPF>true</UseWPF>
 

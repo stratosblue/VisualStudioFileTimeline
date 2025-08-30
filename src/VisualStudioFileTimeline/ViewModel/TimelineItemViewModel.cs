@@ -67,6 +67,11 @@ public class TimelineItemViewModel(FileTimeline timeline,
 
     #region Public 方法
 
+    /// <summary>
+    /// 刷新时间展示
+    /// </summary>
+    public void RefreshTime() => RaisePropertyChanged(nameof(Time));
+
     /// <inheritdoc/>
     public override string ToString() => RawItem.ToString();
 
