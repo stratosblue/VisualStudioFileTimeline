@@ -52,6 +52,18 @@ public class FileTimeline(Uri resource)
         return false;
     }
 
+    public bool Remove(string identifier, out int removedIndex)
+    {
+        removedIndex = SortedTimelineItems.FindIndex(m => m.Identifier == identifier);
+        if (removedIndex >= 0)
+        {
+            SortedTimelineItems.RemoveAt(removedIndex);
+            return true;
+        }
+
+        return false;
+    }
+
     #endregion Public 方法
 }
 

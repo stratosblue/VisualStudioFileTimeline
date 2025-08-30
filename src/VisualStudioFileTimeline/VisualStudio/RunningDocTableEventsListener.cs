@@ -129,8 +129,8 @@ internal sealed class RunningDocTableEventsListener
                     try
                     {
                         var descriptor = new FileHistoryDescriptor(resource, DateTime.Now, null);
-                        var savedFileTimelineItem = await _fileTimelineManager.AddHistoryAsync(descriptor, _cancellationToken);
-                        _fileTimelineViewModel.UpdateCurrentFileTimelineItems(savedFileTimelineItem);
+                        var (savedFileTimelineItem, dropedItemIdentifiers) = await _fileTimelineManager.AddHistoryAsync(descriptor, _cancellationToken);
+                        _fileTimelineViewModel.UpdateCurrentFileTimelineItems(savedFileTimelineItem, dropedItemIdentifiers);
                     }
                     catch (Exception ex)
                     {

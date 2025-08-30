@@ -102,11 +102,11 @@ public class FileTimelineViewModel : NotifyPropertyChangedObject, IDisposable
         }
     }
 
-    public void UpdateCurrentFileTimelineItems(IFileTimelineItem fileTimelineItem)
+    public void UpdateCurrentFileTimelineItems(IFileTimelineItem fileTimelineItem, IEnumerable<string>? dropedItemIdentifiers)
     {
         ThrowIfDisposed();
 
-        ToolWindowViewModel.UpdateCurrentFileTimelineItems(fileTimelineItem);
+        ToolWindowViewModel.UpdateCurrentFileTimelineItems(fileTimelineItem, dropedItemIdentifiers);
     }
 
     #region IDisposable

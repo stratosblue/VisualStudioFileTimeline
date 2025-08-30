@@ -14,12 +14,6 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
 
     private readonly ILogger _logger;
 
-    /// <summary>
-    /// 合并窗口
-    /// TODO 配置化
-    /// </summary>
-    private readonly TimeSpan _mergeWindow = TimeSpan.FromSeconds(10);
-
     #endregion Private 字段
 
     #region Public 字段
@@ -38,6 +32,8 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
 
     public string Name { get; } = "localHistory";
 
+    public LocalHistoryOptions Options { get; }
+
     #endregion Public 属性
 
     #region Public 构造函数
@@ -49,6 +45,8 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
         {
             throw new ArgumentNullException(nameof(options));
         }
+
+        Options = options.LocalHistory ?? throw new ArgumentException(nameof(options.LocalHistory));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         LocalHistoryPath = options.EnsureWorkingDirectory("History");
@@ -67,7 +65,7 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
     }
 
     /// <inheritdoc/>
-    public async Task<IFileTimelineItem> AddHistoryAsync(FileHistoryDescriptor descriptor, CancellationToken cancellationToken = default)
+    public async Task<AddHistoryResult> AddHistoryAsync(FileHistoryDescriptor descriptor, CancellationToken cancellationToken = default)
     {
         var resource = descriptor.Resource;
         var sourceFile = resource.AbsolutePath;
@@ -82,12 +80,13 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
         DirectoryUtil.Ensure(historyFolderPath);
 
         string historyFilePath;
+        string[]? dropedItemIdentifiers = null;
 
-        if (metadata.Entries.OrderByDescending(m => m.Value.Timestamp)
+        if (metadata.Entries.OrderByDescending(static m => m.Value.Timestamp)
                             .FirstOrDefault() is { } lastEntry
             && lastEntry.Key is { Length: > 0 } historyFileName
             && lastEntry.Value is { } entryInfo
-            && entryInfo.Timestamp >= currentTimestamp - _mergeWindow.TotalMilliseconds)    //合并
+            && entryInfo.Timestamp >= currentTimestamp - Options.LastHistoryMergeWindow.TotalMilliseconds)    //合并
         {
             //合并到上一次保存
             _logger.LogInformation("Merge history for {File} to last entry {EntryFile}.", descriptor, historyFileName);
@@ -107,8 +106,31 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
                 Timestamp = currentTimestamp,
             };
 
-            //TODO 清理
             metadata.Entries.Add(fileName, newEntryInfo);
+
+            //清理
+            var overLimit = metadata.Entries.Count - Options.RetentionLimit;
+            if (overLimit > 0)
+            {
+                var dropItems = metadata.Entries.OrderBy(static m => m.Value.Timestamp).Take(overLimit).ToList();
+                foreach (var dropItem in dropItems)
+                {
+                    var dropFileName = dropItem.Key;
+                    var dropItemTime = DateTimeOffset.FromUnixTimeMilliseconds(dropItem.Value.Timestamp).DateTime;
+                    _logger.LogInformation("Drop the history entry {EntryFile} at [{Time}].", dropFileName, dropItemTime);
+                    try
+                    {
+                        File.Delete(Path.Combine(historyFolderPath, dropFileName));
+                        metadata.Entries.Remove(dropFileName);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogInformation(ex, "Drop the history entry {EntryFile} at [{Time}] failed.", dropFileName, dropItemTime);
+                    }
+                }
+
+                dropedItemIdentifiers = [.. dropItems.Select(m => Path.Combine(historyFolderPath, m.Key))];
+            }
         }
 
         _logger.LogTrace("Copy history from {SourceFile} to {DestinationFile}.", sourceFile, historyFilePath);
@@ -118,11 +140,12 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
 
         await SaveMetadataAsync(metadataInfo, CancellationToken.None);
 
-        return new DefaultFileTimelineItem(Title: CreateFileTimelineItemTitleBySource(descriptor.Source),
-                                           Description: null,
-                                           FilePath: historyFilePath,
-                                           Time: descriptor.Time,
-                                           Provider: this);
+        var timelineItem = new DefaultFileTimelineItem(Title: CreateFileTimelineItemTitleBySource(descriptor.Source),
+                                                       Description: null,
+                                                       FilePath: historyFilePath,
+                                                       Time: descriptor.Time,
+                                                       Provider: this);
+        return new(timelineItem, dropedItemIdentifiers);
     }
 
     /// <inheritdoc/>
@@ -266,7 +289,7 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
     {
         var directoryInfo = new DirectoryInfo(historyFolderPath);
         return directoryInfo.EnumerateFiles($"????????{extension}", SearchOption.TopDirectoryOnly)
-                            .OrderByDescending(m => m.CreationTime)
+                            .OrderByDescending(static m => m.CreationTime)
                             .ToList();
     }
 

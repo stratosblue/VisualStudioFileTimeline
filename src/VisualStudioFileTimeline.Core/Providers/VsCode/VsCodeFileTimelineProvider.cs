@@ -36,7 +36,7 @@ public class VsCodeFileTimelineProvider : IFileTimelineProvider, IFileTimelineSt
     }
 
     /// <inheritdoc/>
-    public async Task<IFileTimelineItem> AddHistoryAsync(FileHistoryDescriptor descriptor, CancellationToken cancellationToken = default)
+    public async Task<AddHistoryResult> AddHistoryAsync(FileHistoryDescriptor descriptor, CancellationToken cancellationToken = default)
     {
         var resource = descriptor.Resource;
         var historyFolderPath = GetVsCodeHistoryFolderPath(resource);
@@ -91,11 +91,12 @@ public class VsCodeFileTimelineProvider : IFileTimelineProvider, IFileTimelineSt
         await stream.WriteAsync(jsonData, 0, jsonData.Length, cancellationToken);
         await stream.FlushAsync(CancellationToken.None);
 
-        return new DefaultFileTimelineItem(Title: CreateFileTimelineItemTitleBySource(descriptor.Source),
-                                           Description: null,
-                                           FilePath: filePath,
-                                           Time: descriptor.Time,
-                                           Provider: this);
+        var timelineItem = new DefaultFileTimelineItem(Title: CreateFileTimelineItemTitleBySource(descriptor.Source),
+                                                       Description: null,
+                                                       FilePath: filePath,
+                                                       Time: descriptor.Time,
+                                                       Provider: this);
+        return new(timelineItem);
     }
 
     /// <inheritdoc/>
@@ -198,7 +199,7 @@ public class VsCodeFileTimelineProvider : IFileTimelineProvider, IFileTimelineSt
     {
         var directoryInfo = new DirectoryInfo(historyFolderPath);
         return directoryInfo.EnumerateFiles($"????{extension}", SearchOption.TopDirectoryOnly)
-                            .OrderByDescending(m => m.CreationTime)
+                            .OrderByDescending(static m => m.CreationTime)
                             .ToList();
     }
 

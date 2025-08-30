@@ -12,11 +12,11 @@ public class FileTimelineManager
 
     #region Public 属性
 
-    public IFileTimelineStore CurrentStore => _stores.First(m => m.IsEnable = true).Store;
+    public IFileTimelineStore CurrentStore => _stores.First(static m => m.IsEnable = true).Store;
 
-    public IEnumerable<IFileTimelineProvider> Providers => _providers.Select(m => m.Provider);
+    public IEnumerable<IFileTimelineProvider> Providers => _providers.Select(static m => m.Provider);
 
-    public IEnumerable<IFileTimelineStore> Stores => _stores.Select(m => m.Store);
+    public IEnumerable<IFileTimelineStore> Stores => _stores.Select(static m => m.Store);
 
     #endregion Public 属性
 
@@ -44,7 +44,7 @@ public class FileTimelineManager
 
     #region Public 方法
 
-    public Task<IFileTimelineItem> AddHistoryAsync(FileHistoryDescriptor descriptor, CancellationToken cancellationToken = default)
+    public Task<AddHistoryResult> AddHistoryAsync(FileHistoryDescriptor descriptor, CancellationToken cancellationToken = default)
     {
         return CurrentStore.AddHistoryAsync(descriptor, cancellationToken);
     }

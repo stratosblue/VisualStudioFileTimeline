@@ -10,7 +10,9 @@ public interface IFileTimelineStore
 
     #region Public 方法
 
-    Task<IFileTimelineItem> AddHistoryAsync(FileHistoryDescriptor descriptor, CancellationToken cancellationToken = default);
+    Task<AddHistoryResult> AddHistoryAsync(FileHistoryDescriptor descriptor, CancellationToken cancellationToken = default);
 
     #endregion Public 方法
 }
+
+public record struct AddHistoryResult(IFileTimelineItem AddedItem, IList<string>? DropedItemIdentifiers = null);

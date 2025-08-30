@@ -16,6 +16,8 @@ public record class VisualStudioFileTimelineOptions
 
     #region Public 属性
 
+    public LocalHistoryOptions LocalHistory { get; set; } = new();
+
     public LogLevel LogLevel { get; set; } = LogLevel.Warning;
 
     public required string WorkingDirectory { get => _workingDirectory ??= GetDefaultConfigurationFilePath(); init => _workingDirectory = value; }

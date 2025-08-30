@@ -25,13 +25,13 @@ public class TimelineToolWindowViewModel : NotifyPropertyChangedObject
 
     #region Public 属性
 
-    public bool IsVisible { get; set; }
-
     public string? FileName
     {
         get => _fileName;
         set => SetProperty(ref _fileName, value);
     }
+
+    public bool IsVisible { get; set; }
 
     public ObservableList<TimelineItemViewModel> Items
     {
@@ -198,7 +198,7 @@ public class TimelineToolWindowViewModel : NotifyPropertyChangedObject
         _logger.LogInformation("Item {Item} unselected.", unselected);
     }
 
-    public void UpdateCurrentFileTimelineItems(IFileTimelineItem fileTimelineItem)
+    public void UpdateCurrentFileTimelineItems(IFileTimelineItem fileTimelineItem, IEnumerable<string>? dropedItemIdentifiers)
     {
         _logger.LogInformation("Update current file timeline items with {Item}.", fileTimelineItem);
 
@@ -221,6 +221,18 @@ public class TimelineToolWindowViewModel : NotifyPropertyChangedObject
                         items.RemoveAt(removedIndex);
                     }
                     items.Insert(insertIndex, new(fileTimeline, fileTimelineItem, this));
+
+                    if (dropedItemIdentifiers is not null)
+                    {
+                        foreach (var identifier in dropedItemIdentifiers)
+                        {
+                            if (fileTimeline.Remove(identifier, out removedIndex)
+                                && removedIndex >= 0)
+                            {
+                                items.RemoveAt(removedIndex);
+                            }
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
