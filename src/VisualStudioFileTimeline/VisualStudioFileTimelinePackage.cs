@@ -90,10 +90,6 @@ public sealed class VisualStudioFileTimelinePackage : AsyncPackage
 
         options.EnsureWorkingDirectory();
 
-#if DEBUG
-        options.LogLevel = LogLevel.Trace;
-#endif
-
         if (Interlocked.Exchange(ref _innerLogger, CreateSerilogLogger(options)) is IDisposable disposableLogger)
         {
             disposableLogger.Dispose();
@@ -131,6 +127,17 @@ public sealed class VisualStudioFileTimelinePackage : AsyncPackage
         Logger.LogDebug("Package disposing.");
 
         base.Dispose(disposing);
+
+        if (GlobalProvider?.GetService<VisualStudioFileTimelineOptions>() is { } options)
+        {
+            VisualStudioFileTimelineOptions.SaveToDefaultConfigurationFile(options, out var optionsSaveMessage);
+
+            if (!string.IsNullOrWhiteSpace(optionsSaveMessage))
+            {
+                Logger.LogError(optionsSaveMessage);
+            }
+        }
+
         (GlobalProvider as IDisposable)?.Dispose();
 
         Logger.LogDebug("Package disposed.");
@@ -144,7 +151,14 @@ public sealed class VisualStudioFileTimelinePackage : AsyncPackage
     private static Serilog.Core.Logger CreateSerilogLogger(VisualStudioFileTimelineOptions options)
     {
         var logFilePath = Path.Combine(options.EnsureWorkingDirectory("Logs"), "logs.log");
-        var level = options.LogLevel switch
+
+        var optionsLogLevel = options.LogLevel;
+
+#if DEBUG
+        optionsLogLevel = LogLevel.Trace;
+#endif
+
+        var level = optionsLogLevel switch
         {
             LogLevel.Trace => LogEventLevel.Verbose,
             LogLevel.Debug => LogEventLevel.Debug,
@@ -180,7 +194,12 @@ public sealed class VisualStudioFileTimelinePackage : AsyncPackage
 
         services.AddLogging(builder =>
         {
+#if DEBUG
+            builder.SetMinimumLevel(LogLevel.Trace);
+#else
             builder.SetMinimumLevel(options.LogLevel);
+#endif
+
             builder.AddSerilog(_innerLogger, dispose: false);
         });
 

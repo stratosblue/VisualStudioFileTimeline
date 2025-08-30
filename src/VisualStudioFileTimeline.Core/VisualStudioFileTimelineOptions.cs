@@ -89,6 +89,21 @@ public record class VisualStudioFileTimelineOptions
         };
     }
 
+    public static void SaveToDefaultConfigurationFile(VisualStudioFileTimelineOptions options, out string? saveMessage) => SaveToFile(options, GetDefaultConfigurationFilePath(), out saveMessage);
+
+    public static void SaveToFile(VisualStudioFileTimelineOptions options, string filePath, out string? saveMessage)
+    {
+        saveMessage = null;
+        try
+        {
+            File.WriteAllText(filePath, JsonSerializer.Serialize(options));
+        }
+        catch (Exception ex)
+        {
+            saveMessage = $"Save options to {filePath} failed. {ex}";
+        }
+    }
+
     #endregion 静态方法
 
     #endregion Public 方法
