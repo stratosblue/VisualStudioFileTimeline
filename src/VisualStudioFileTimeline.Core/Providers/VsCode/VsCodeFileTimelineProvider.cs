@@ -95,7 +95,8 @@ public class VsCodeFileTimelineProvider : IFileTimelineProvider, IFileTimelineSt
                                                        Description: null,
                                                        FilePath: filePath,
                                                        Time: descriptor.Time,
-                                                       Provider: this);
+                                                       Provider: this,
+                                                       IsReadOnly: false);
         return new(timelineItem);
     }
 
@@ -111,7 +112,8 @@ public class VsCodeFileTimelineProvider : IFileTimelineProvider, IFileTimelineSt
                                                    Description: null,
                                                    FilePath: m.FullName,
                                                    Time: m.CreationTime,
-                                                   Provider: this);
+                                                   Provider: this,
+                                                   IsReadOnly: false);
             });
         }
         else
@@ -161,7 +163,8 @@ public class VsCodeFileTimelineProvider : IFileTimelineProvider, IFileTimelineSt
                                                    Description: null,
                                                    FilePath: m.FullName,
                                                    Time: time ?? m.CreationTime,
-                                                   Provider: this);
+                                                   Provider: this,
+                                                   IsReadOnly: false);
             })!;
         }
 

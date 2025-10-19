@@ -155,7 +155,8 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
                                                        Description: null,
                                                        FilePath: historyFilePath,
                                                        Time: descriptor.Time,
-                                                       Provider: this);
+                                                       Provider: this,
+                                                       IsReadOnly: false);
         return new(timelineItem, dropedItemIdentifiers);
     }
 
@@ -201,7 +202,8 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
                                                Description: null,
                                                FilePath: m.FullName,
                                                Time: time ?? m.CreationTime,
-                                               Provider: this);
+                                               Provider: this,
+                                               IsReadOnly: false);
         }).ToList();
 
         if (metadataMismatched

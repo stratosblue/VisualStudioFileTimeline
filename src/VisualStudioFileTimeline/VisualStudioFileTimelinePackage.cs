@@ -12,6 +12,7 @@ using Serilog.Events;
 using VisualStudioFileTimeline.Commands;
 using VisualStudioFileTimeline.Internal.Serilog;
 using VisualStudioFileTimeline.Providers.Default;
+using VisualStudioFileTimeline.Providers.Git;
 using VisualStudioFileTimeline.Providers.VsCode;
 using VisualStudioFileTimeline.View;
 using VisualStudioFileTimeline.ViewModel;
@@ -190,6 +191,9 @@ public sealed class VisualStudioFileTimelinePackage : AsyncPackage
     private void InitializeServices(IServiceCollection services, VisualStudioFileTimelineOptions options)
     {
         AddFileTimelineProvider<LocalHistoryFileTimelineProvider>(services);
+#if DEBUG
+        AddFileTimelineProvider<GitFileTimelineProvider>(services);
+#endif
         AddFileTimelineProvider<VsCodeFileTimelineProvider>(services);
 
         services.AddLogging(builder =>
@@ -216,11 +220,15 @@ public sealed class VisualStudioFileTimelinePackage : AsyncPackage
         services.TryAddSingleton<RunningDocTableEventsListener>();
 
         static void AddFileTimelineProvider<T>(IServiceCollection services)
-            where T : class, IFileTimelineProvider, IFileTimelineStore
+            where T : class, IFileTimelineProvider
         {
             services.TryAddSingleton<T>();
             services.AddSingleton<IFileTimelineProvider>(serviceProvider => serviceProvider.GetRequiredService<T>());
-            services.AddSingleton<IFileTimelineStore>(serviceProvider => serviceProvider.GetRequiredService<T>());
+
+            if (typeof(IFileTimelineStore).IsAssignableFrom(typeof(T)))
+            {
+                services.AddSingleton<IFileTimelineStore>(serviceProvider => (IFileTimelineStore)serviceProvider.GetRequiredService<T>());
+            }
         }
     }
 

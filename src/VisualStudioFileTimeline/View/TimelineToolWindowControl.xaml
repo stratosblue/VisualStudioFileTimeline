@@ -45,14 +45,14 @@
             BorderBrush="{DynamicResource {x:Static styles:VsBrushes.InactiveBorderKey}}">
       <Grid>
         <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*"/>
-          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
 
         <TextBlock Text="{Binding FileName}"
                    TextTrimming="CharacterEllipsis"
                    TextWrapping="NoWrap"
-                   Margin="8,1"/>
+                   Margin="8,1" />
       </Grid>
     </Border>
     <!--Title-->
@@ -95,6 +95,7 @@
                   <StackPanel>
                     <TextBlock Text="{Binding Time}" />
                     <TextBlock Text="{Binding Title}" FontWeight="Bold" />
+                    <TextBlock Text="{Binding Description}" />
                   </StackPanel>
                 </ToolTip>
               </Grid.ToolTip>

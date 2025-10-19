@@ -4,7 +4,8 @@ public record DefaultFileTimelineItem(string Title,
                                       string? Description,
                                       string FilePath,
                                       DateTime Time,
-                                      IFileTimelineProvider Provider)
+                                      IFileTimelineProvider Provider,
+                                      bool IsReadOnly)
     : IFileTimelineItem
 {
     public string Identifier => FilePath;

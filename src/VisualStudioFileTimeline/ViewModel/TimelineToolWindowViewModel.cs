@@ -21,6 +21,8 @@ public class TimelineToolWindowViewModel : NotifyPropertyChangedObject
 
     private ObservableList<TimelineItemViewModel> _items = [];
 
+    private volatile CancellationTokenSource? _lastComparisonCTS = null;
+
     #endregion Private 字段
 
     #region Public 属性
@@ -84,7 +86,14 @@ public class TimelineToolWindowViewModel : NotifyPropertyChangedObject
                     }
                 }).Task.Forget();
             }
-        }, static _ => true, package.JoinableTaskFactory);
+        }, static parameter =>
+        {
+            if (parameter is TimelineItemViewModel viewModel)
+            {
+                return !viewModel.RawItem.IsReadOnly;
+            }
+            return false;
+        }, package.JoinableTaskFactory);
 
         OpenWithExplorerCommand = new DelegateCommand((parameter) =>
         {
@@ -183,9 +192,39 @@ public class TimelineToolWindowViewModel : NotifyPropertyChangedObject
             return;
         }
 
-        _ = VisualStudioShellUtilities.ShowFileTimelineComparisonWindowAsync(fileTimeline: fileTimeline,
-                                                                             comparisonFilePath: selected.FilePath,
-                                                                             comparisonFileDescription: $"{selected.Title} at {selected.Time.ToLongDateString()} {selected.Time.ToLongTimeString()}");
+        if (_lastComparisonCTS is { } lastComparisonCTS)
+        {
+            try
+            {
+                lastComparisonCTS.Cancel();
+            }
+            catch { }
+            lastComparisonCTS.Dispose();
+        }
+
+        lastComparisonCTS = new();
+        _lastComparisonCTS = lastComparisonCTS;
+        var cancellationToken = _lastComparisonCTS.Token;
+
+        if (selected.RawItem is GitFileTimelineItem gitFileTimelineItem)
+        {
+            //TODO 更合理的对比方式
+            _ = Task.Run(async () =>
+            {
+                await gitFileTimelineItem.LoadAsTempFileAsync(cancellationToken);
+                await VisualStudioShellUtilities.ShowFileTimelineComparisonWindowAsync(fileTimeline: fileTimeline,
+                                                                                       comparisonFilePath: gitFileTimelineItem.FilePath,
+                                                                                       comparisonFileDescription: $"Commit: {gitFileTimelineItem.CommitInfo.CommitId}",
+                                                                                       cancellationToken: cancellationToken);
+            });
+        }
+        else
+        {
+            _ = VisualStudioShellUtilities.ShowFileTimelineComparisonWindowAsync(fileTimeline: fileTimeline,
+                                                                                 comparisonFilePath: selected.FilePath,
+                                                                                 comparisonFileDescription: $"{selected.Title} at {selected.Time.ToLongDateString()} {selected.Time.ToLongTimeString()}",
+                                                                                 cancellationToken: cancellationToken);
+        }
     }
 
     public void SetCurrentFileTimeline(FileTimeline fileTimeline)

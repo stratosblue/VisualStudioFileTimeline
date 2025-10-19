@@ -1,8 +1,13 @@
-﻿namespace VisualStudioFileTimeline;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+
+namespace VisualStudioFileTimeline;
 
 public class FileTimelineManager
 {
     #region Private 字段
+
+    private readonly ILogger _logger;
 
     private readonly List<ProviderWithSwitch> _providers;
 
@@ -22,12 +27,17 @@ public class FileTimelineManager
 
     #region Public 构造函数
 
-    public FileTimelineManager(IEnumerable<IFileTimelineProvider> providers, IEnumerable<IFileTimelineStore> stores)
+    public FileTimelineManager(IEnumerable<IFileTimelineProvider> providers, IEnumerable<IFileTimelineStore> stores, ILogger<FileTimelineManager> logger)
     {
         var nameHashSet = new HashSet<string>();
-        _providers = providers.Where(m => nameHashSet.Add(m.Name)).Select(m => new ProviderWithSwitch(m)).ToList();
+        _providers = providers.Where(m => nameHashSet.Add(m.Name))
+                              .Select(m => new ProviderWithSwitch(m))
+                              .ToList();
         nameHashSet.Clear();
-        _stores = stores.Where(m => nameHashSet.Add(m.Name)).Select(m => new StoreWithSwitch(m)).ToList();
+        _stores = stores.Where(m => nameHashSet.Add(m.Name))
+                        .Select(m => new StoreWithSwitch(m))
+                        .ToList();
+        _logger = logger ?? NullLogger<FileTimelineManager>.Instance;
     }
 
     #endregion Public 构造函数
@@ -59,13 +69,20 @@ public class FileTimelineManager
 
         foreach (var provider in _providers)
         {
-            if (provider.IsEnable)
+            try
             {
-                var items = await provider.Provider.GetAsync(resource, cancellationToken);
-                foreach (var item in items)
+                if (provider.IsEnable)
                 {
-                    result.AddOrUpdateItem(item, out _);
+                    var items = await provider.Provider.GetAsync(resource, cancellationToken);
+                    foreach (var item in items)
+                    {
+                        result.AddOrUpdateItem(item, out _);
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error at get file timeline with {Provider}.", provider);
             }
         }
 

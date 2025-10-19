@@ -10,6 +10,11 @@ public interface IFileTimelineItem
 
     public string Identifier { get; }
 
+    /// <summary>
+    /// 是否为只读
+    /// </summary>
+    public bool IsReadOnly { get; }
+
     public IFileTimelineProvider Provider { get; }
 
     public DateTime Time { get; }

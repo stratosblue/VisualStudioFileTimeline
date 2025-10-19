@@ -44,6 +44,10 @@ public class FileTimeline(Uri resource)
 
     public async Task<bool> DeleteItemAsync(IFileTimelineItem item, CancellationToken cancellationToken)
     {
+        if (item.IsReadOnly)
+        {
+            return false;
+        }
         if (await item.Provider.TryDropAsync(item, cancellationToken))
         {
             SortedTimelineItems.Remove(item);
