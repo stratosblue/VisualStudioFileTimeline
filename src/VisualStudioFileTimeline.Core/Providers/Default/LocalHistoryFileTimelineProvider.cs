@@ -108,29 +108,40 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
 
             metadata.Entries.Add(fileName, newEntryInfo);
 
+            var timeThreshold = Options.RetentionWindow is null
+                                ? -1
+                                : DateTimeOffset.UtcNow.Add(-Options.RetentionWindow.Value).ToUnixTimeMilliseconds();
+
+            var dropItems = metadata.Entries.Where(m => m.Value.Timestamp < timeThreshold)
+                                            .ToDictionary(m => m.Key, m => m.Value);
+
             //清理
             var overLimit = metadata.Entries.Count - Options.RetentionLimit;
             if (overLimit > 0)
             {
-                var dropItems = metadata.Entries.OrderBy(static m => m.Value.Timestamp).Take(overLimit).ToList();
-                foreach (var dropItem in dropItems)
+                foreach (var entry in metadata.Entries.OrderBy(static m => m.Value.Timestamp).Take(overLimit))
                 {
-                    var dropFileName = dropItem.Key;
-                    var dropItemTime = DateTimeOffset.FromUnixTimeMilliseconds(dropItem.Value.Timestamp).DateTime;
-                    _logger.LogInformation("Drop the history entry {EntryFile} at [{Time}].", dropFileName, dropItemTime);
-                    try
-                    {
-                        File.Delete(Path.Combine(historyFolderPath, dropFileName));
-                        metadata.Entries.Remove(dropFileName);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogInformation(ex, "Drop the history entry {EntryFile} at [{Time}] failed.", dropFileName, dropItemTime);
-                    }
+                    dropItems[entry.Key] = entry.Value;
                 }
-
-                dropedItemIdentifiers = [.. dropItems.Select(m => Path.Combine(historyFolderPath, m.Key))];
             }
+
+            foreach (var dropItem in dropItems)
+            {
+                var dropFileName = dropItem.Key;
+                var dropItemTime = DateTimeOffset.FromUnixTimeMilliseconds(dropItem.Value.Timestamp).DateTime;
+                _logger.LogInformation("Drop the history entry {EntryFile} at [{Time}].", dropFileName, dropItemTime);
+                try
+                {
+                    File.Delete(Path.Combine(historyFolderPath, dropFileName));
+                    metadata.Entries.Remove(dropFileName);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogInformation(ex, "Drop the history entry {EntryFile} at [{Time}] failed.", dropFileName, dropItemTime);
+                }
+            }
+
+            dropedItemIdentifiers = [.. dropItems.Select(m => Path.Combine(historyFolderPath, m.Key))];
         }
 
         _logger.LogTrace("Copy history from {SourceFile} to {DestinationFile}.", sourceFile, historyFilePath);

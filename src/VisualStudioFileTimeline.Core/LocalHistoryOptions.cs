@@ -17,5 +17,11 @@ public class LocalHistoryOptions
     /// </summary>
     public int RetentionLimit { get; set; } = 100;
 
+    /// <summary>
+    /// 历史记录最大保留时间窗口
+    /// TODO 添加一键清理功能
+    /// </summary>
+    public TimeSpan? RetentionWindow { get; set; } = TimeSpan.FromDays(100);
+
     #endregion Public 属性
 }
