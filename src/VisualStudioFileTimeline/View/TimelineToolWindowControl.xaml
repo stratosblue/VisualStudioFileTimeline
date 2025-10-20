@@ -29,6 +29,7 @@
 
       <converters:TimeDisplayConverter x:Key="TimeDisplayConverter" />
       <converters:Int32ToVisibilityConverter x:Key="Int32ToVisibilityConverter" />
+      <converters:SourceControlNameImageMonikerConverter x:Key="SourceControlNameImageMonikerConverter" />
     </Grid.Resources>
 
     <Grid.ColumnDefinitions>
@@ -88,7 +89,7 @@
 
         <ListView.ItemTemplate>
           <DataTemplate DataType="{x:Type viewmodels:TimelineItemViewModel}">
-            <Grid Margin="8,0">
+            <Grid Margin="0,0,8,0">
 
               <Grid.ToolTip>
                 <ToolTip Style="{DynamicResource {x:Static styles:VsResourceKeys.LargeToolTipStyleKey}}">
@@ -138,16 +139,25 @@
               </Grid.ContextMenu>
 
               <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
 
-              <TextBlock Text="{Binding Title, Mode=OneWay}"
+              <imaging:CrispImage VerticalAlignment="Center"
+                                  HorizontalAlignment="Center"
+                                  Margin="0,0,4,0"
+                                  Width="16"
+                                  Height="16"
+                                  Moniker="{Binding SourceControlName, Converter={StaticResource SourceControlNameImageMonikerConverter}}" />
+
+              <TextBlock Grid.Column="1"
+                         Text="{Binding Title, Mode=OneWay}"
                          TextTrimming="CharacterEllipsis"
                          TextWrapping="NoWrap" />
 
-              <TextBlock Grid.Column="1"
+              <TextBlock Grid.Column="2"
 					               Text="{Binding Time, Mode=OneWay, Converter={StaticResource TimeDisplayConverter}}"
                          Opacity="0.7"
                          HorizontalAlignment="Right" />

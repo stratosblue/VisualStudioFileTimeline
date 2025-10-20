@@ -45,6 +45,8 @@ public class TimelineItemViewModel(FileTimeline timeline,
         }
     }
 
+    public string? SourceControlName => timelineItem.SourceControlName;
+
     public DateTime Time { get; } = timelineItem.Time;
 
     public string Title { get; } = timelineItem.Title;
