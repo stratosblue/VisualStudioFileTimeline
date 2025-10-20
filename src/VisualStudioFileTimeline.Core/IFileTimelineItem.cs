@@ -17,6 +17,11 @@ public interface IFileTimelineItem
 
     public IFileTimelineProvider Provider { get; }
 
+    /// <summary>
+    /// 源码控制名称(应当为a-z0-9_)
+    /// </summary>
+    public string? SourceControlName { get; }
+
     public DateTime Time { get; }
 
     public string Title { get; }

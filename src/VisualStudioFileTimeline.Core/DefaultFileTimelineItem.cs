@@ -8,7 +8,11 @@ public record DefaultFileTimelineItem(string Title,
                                       bool IsReadOnly)
     : IFileTimelineItem
 {
+    /// <inheritdoc/>
     public string Identifier => FilePath;
+
+    /// <inheritdoc/>
+    public string? SourceControlName => null;
 
     /// <inheritdoc/>
     public override string ToString()

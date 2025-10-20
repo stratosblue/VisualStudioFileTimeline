@@ -54,7 +54,8 @@ public class GitFileTimelineProvider : IFileTimelineProvider
             var result = new List<IFileTimelineItem>();
             foreach (var commitInfo in commitInfos)
             {
-                var item = new GitFileTimelineItem(RootDirectory: rootDirectory,
+                var item = new GitFileTimelineItem(SourceFilePath: resource.LocalPath,
+                                                   RootDirectory: rootDirectory,
                                                    RelativeFilePath: relativePath,
                                                    CommitInfo: commitInfo,
                                                    Title: CreateTitle(commitInfo.Body),
