@@ -10,6 +10,8 @@ public record class VisualStudioFileTimelineOptions
 {
     #region Private 字段
 
+    private string? _temporaryDirectory;
+
     private string? _workingDirectory;
 
     #endregion Private 字段
@@ -20,11 +22,31 @@ public record class VisualStudioFileTimelineOptions
 
     public LogLevel LogLevel { get; set; } = LogLevel.Warning;
 
-    public required string WorkingDirectory { get => _workingDirectory ??= GetDefaultConfigurationFilePath(); init => _workingDirectory = value; }
+    public required string WorkingDirectory { get => _workingDirectory ??= GetDefaultWorkingDirectory(); init => _workingDirectory = value; }
+
+    public required string TemporaryDirectory { get => _temporaryDirectory ??= GetDefaultTemporaryDirectory(); init => _temporaryDirectory = value; }
 
     #endregion Public 属性
 
     #region Public 方法
+
+    public string EnsureTemporaryDirectory(string? subFolder = null)
+    {
+        var temporaryDirectory = TemporaryDirectory;
+        if (string.IsNullOrWhiteSpace(temporaryDirectory))
+        {
+            throw new InvalidOperationException($"Invalid temporary directory \"{temporaryDirectory}\"");
+        }
+        if (string.IsNullOrWhiteSpace(subFolder))
+        {
+            DirectoryUtil.Ensure(temporaryDirectory);
+            return temporaryDirectory;
+        }
+
+        temporaryDirectory = Path.Combine(temporaryDirectory, subFolder);
+        DirectoryUtil.Ensure(temporaryDirectory);
+        return temporaryDirectory;
+    }
 
     public string EnsureWorkingDirectory(string? subFolder = null)
     {
@@ -59,6 +81,11 @@ public record class VisualStudioFileTimelineOptions
         return Path.Combine(GetDefaultWorkingDirectory(), "configuration.json");
     }
 
+    public static string GetDefaultTemporaryDirectory()
+    {
+        return Path.Combine(Path.GetTempPath(), "VSFileTimeline");
+    }
+
     public static string GetDefaultWorkingDirectory()
     {
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VSFileTimeline");
@@ -86,6 +113,7 @@ public record class VisualStudioFileTimelineOptions
         return options ?? new()
         {
             WorkingDirectory = GetDefaultWorkingDirectory(),
+            TemporaryDirectory = GetDefaultTemporaryDirectory(),
         };
     }
 

@@ -88,11 +88,8 @@ public class TimelineToolWindowViewModel : NotifyPropertyChangedObject
             }
         }, static parameter =>
         {
-            if (parameter is TimelineItemViewModel viewModel)
-            {
-                return !viewModel.RawItem.IsReadOnly;
-            }
-            return false;
+            return parameter is TimelineItemViewModel viewModel
+                   && viewModel.RawItem.Flag.HasFlag(FileTimelineItemFlag.Deletable);
         }, package.JoinableTaskFactory);
 
         OpenWithExplorerCommand = new DelegateCommand((parameter) =>
@@ -114,7 +111,11 @@ public class TimelineToolWindowViewModel : NotifyPropertyChangedObject
                     _logger.LogError(ex, "OpenWithExplorerCommand Failed. {Item}", viewModel);
                 }
             }
-        }, static _ => true, package.JoinableTaskFactory);
+        }, static parameter =>
+        {
+            return parameter is TimelineItemViewModel viewModel
+                   && viewModel.RawItem.Flag.HasFlag(FileTimelineItemFlag.HasLocalFile);
+        }, package.JoinableTaskFactory);
 
         RestoreContentCommand = new DelegateCommand((parameter) =>
         {

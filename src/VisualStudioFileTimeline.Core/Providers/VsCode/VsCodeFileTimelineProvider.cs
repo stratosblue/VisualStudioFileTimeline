@@ -96,7 +96,7 @@ public class VsCodeFileTimelineProvider : IFileTimelineProvider, IFileTimelineSt
                                                        FilePath: filePath,
                                                        Time: descriptor.Time,
                                                        Provider: this,
-                                                       IsReadOnly: false);
+                                                       Flag: FileTimelineItemFlag.Deletable | FileTimelineItemFlag.HasLocalFile);
         return new(timelineItem);
     }
 
@@ -113,7 +113,7 @@ public class VsCodeFileTimelineProvider : IFileTimelineProvider, IFileTimelineSt
                                                    FilePath: m.FullName,
                                                    Time: m.CreationTime,
                                                    Provider: this,
-                                                   IsReadOnly: false);
+                                                   Flag: FileTimelineItemFlag.Deletable | FileTimelineItemFlag.HasLocalFile);
             });
         }
         else
@@ -164,7 +164,7 @@ public class VsCodeFileTimelineProvider : IFileTimelineProvider, IFileTimelineSt
                                                    FilePath: m.FullName,
                                                    Time: time ?? m.CreationTime,
                                                    Provider: this,
-                                                   IsReadOnly: false);
+                                                   Flag: FileTimelineItemFlag.Deletable | FileTimelineItemFlag.HasLocalFile);
             })!;
         }
 

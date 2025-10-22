@@ -156,7 +156,7 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
                                                        FilePath: historyFilePath,
                                                        Time: descriptor.Time,
                                                        Provider: this,
-                                                       IsReadOnly: false);
+                                                       Flag: FileTimelineItemFlag.Deletable | FileTimelineItemFlag.HasLocalFile);
         return new(timelineItem, dropedItemIdentifiers);
     }
 
@@ -203,7 +203,7 @@ public class LocalHistoryFileTimelineProvider : IFileTimelineProvider, IFileTime
                                                FilePath: m.FullName,
                                                Time: time ?? m.CreationTime,
                                                Provider: this,
-                                               IsReadOnly: false);
+                                               Flag: FileTimelineItemFlag.Deletable | FileTimelineItemFlag.HasLocalFile);
         }).ToList();
 
         if (metadataMismatched

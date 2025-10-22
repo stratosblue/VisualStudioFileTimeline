@@ -5,7 +5,7 @@ public record DefaultFileTimelineItem(string Title,
                                       string FilePath,
                                       DateTime Time,
                                       IFileTimelineProvider Provider,
-                                      bool IsReadOnly)
+                                      FileTimelineItemFlag Flag)
     : IFileTimelineItem
 {
     /// <inheritdoc/>

@@ -1,16 +1,23 @@
-﻿using System.Diagnostics;
+﻿using System.Buffers;
+using System.Diagnostics;
+using System.IO.Hashing;
+using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
+using VisualStudioFileTimeline.Providers.Default;
 
 namespace VisualStudioFileTimeline.Providers.Git;
 
 /// <summary>
 /// 基于 git 的文件时间线提供器
 /// </summary>
-public class GitFileTimelineProvider : IFileTimelineProvider
+public class GitFileTimelineProvider(VisualStudioFileTimelineOptions options, ILogger<GitFileTimelineProvider> logger)
+    : IFileTimelineProvider, IDisposable
 {
     #region Private 字段
 
-    private readonly string? _gitExecutableFilePath;
+    private readonly string? _gitExecutableFilePath = GetGitExecutableFilePath();
 
     #endregion Private 字段
 
@@ -22,16 +29,9 @@ public class GitFileTimelineProvider : IFileTimelineProvider
     /// <inheritdoc/>
     public string Name { get; } = "gitHistory";
 
+    public string TemporaryDirectory { get; } = options.EnsureTemporaryDirectory("git_temp");
+
     #endregion Public 属性
-
-    #region Public 构造函数
-
-    public GitFileTimelineProvider()
-    {
-        _gitExecutableFilePath = GetGitExecutableFilePath();
-    }
-
-    #endregion Public 构造函数
 
     #region Public 方法
 
@@ -50,6 +50,8 @@ public class GitFileTimelineProvider : IFileTimelineProvider
         if (commitInfos.Length > 0)
         {
             var relativePath = filePath.Substring(rootDirectory.Length + 1);
+            var fileName = Path.GetFileName(relativePath);
+            var fileIdentifier = GetFileIdentifier(filePath);
 
             var result = new List<IFileTimelineItem>();
             foreach (var commitInfo in commitInfos)
@@ -57,9 +59,11 @@ public class GitFileTimelineProvider : IFileTimelineProvider
                 var item = new GitFileTimelineItem(SourceFilePath: resource.LocalPath,
                                                    RootDirectory: rootDirectory,
                                                    RelativeFilePath: relativePath,
+                                                   FileName: fileName,
+                                                   FileIdentifier: fileIdentifier,
                                                    CommitInfo: commitInfo,
                                                    Title: CreateTitle(commitInfo.Body),
-                                                   Time: DateTimeOffset.FromUnixTimeSeconds(commitInfo.AuthorTimestamp).DateTime,
+                                                   Time: DateTimeOffset.FromUnixTimeSeconds(commitInfo.AuthorTimestamp).ToLocalTime().DateTime,
                                                    Provider: this);
                 result.Add(item);
             }
@@ -86,6 +90,36 @@ public class GitFileTimelineProvider : IFileTimelineProvider
     {
         return Task.FromResult(false);
     }
+
+    #region Dispose
+
+    public void Dispose()
+    {
+        try
+        {
+            //每次退出时清理几个文件
+            foreach (var item in Directory.EnumerateFiles(TemporaryDirectory).Take(5))
+            {
+                try
+                {
+                    File.Delete(item);
+                }
+                catch
+                {
+                    if (File.Exists(item))
+                    {
+                        throw;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Cleanup git temp files failed at dispose.");
+        }
+    }
+
+    #endregion Dispose
 
     #endregion Public 方法
 
@@ -132,6 +166,45 @@ public class GitFileTimelineProvider : IFileTimelineProvider
             throw new GitExecutionException("Not found git.", -1);
         }
     }
+
+    #region PathHash
+
+    private static readonly ConditionalWeakTable<string, string> s_pathIdentifierCache = new();
+
+    private static string GetFileIdentifier(string fullPath)
+    {
+        if (s_pathIdentifierCache.TryGetValue(fullPath, out var value))
+        {
+            return value;
+        }
+
+        var spanMemory = ArrayPool<byte>.Shared.Rent(Encoding.UTF8.GetMaxByteCount(fullPath.Length));
+        try
+        {
+            //这里多少有点冗余操作
+            var pathBytesLength = Encoding.UTF8.GetBytes(fullPath, 0, fullPath.Length, spanMemory, 0);
+
+            Span<byte> buffer = stackalloc byte[sizeof(long)];
+            var span = spanMemory.AsSpan();
+            Crc32.Hash(span.Slice(0, pathBytesLength), buffer);
+
+            value = SequenceFileNameUtil.Create(buffer);
+
+            try
+            {
+                s_pathIdentifierCache.Add(fullPath, value);
+            }
+            catch { }
+
+            return value;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(spanMemory);
+        }
+    }
+
+    #endregion PathHash
 
     #endregion Private 方法
 

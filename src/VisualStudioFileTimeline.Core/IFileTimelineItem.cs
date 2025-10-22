@@ -8,12 +8,12 @@ public interface IFileTimelineItem
 
     public string FilePath { get; }
 
-    public string Identifier { get; }
-
     /// <summary>
-    /// 是否为只读
+    /// 标记
     /// </summary>
-    public bool IsReadOnly { get; }
+    public FileTimelineItemFlag Flag { get; }
+
+    public string Identifier { get; }
 
     public IFileTimelineProvider Provider { get; }
 
