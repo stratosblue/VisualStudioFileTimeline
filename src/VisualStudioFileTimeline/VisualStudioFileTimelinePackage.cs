@@ -191,9 +191,7 @@ public sealed class VisualStudioFileTimelinePackage : AsyncPackage
     private void InitializeServices(IServiceCollection services, VisualStudioFileTimelineOptions options)
     {
         AddFileTimelineProvider<LocalHistoryFileTimelineProvider>(services);
-#if DEBUG
         AddFileTimelineProvider<GitFileTimelineProvider>(services);
-#endif
         AddFileTimelineProvider<VsCodeFileTimelineProvider>(services);
 
         services.AddLogging(builder =>

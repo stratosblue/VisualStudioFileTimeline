@@ -22,9 +22,9 @@ public record class VisualStudioFileTimelineOptions
 
     public LogLevel LogLevel { get; set; } = LogLevel.Warning;
 
-    public required string WorkingDirectory { get => _workingDirectory ??= GetDefaultWorkingDirectory(); init => _workingDirectory = value; }
+    public string WorkingDirectory { get => _workingDirectory ??= GetDefaultWorkingDirectory(); init => _workingDirectory = value; }
 
-    public required string TemporaryDirectory { get => _temporaryDirectory ??= GetDefaultTemporaryDirectory(); init => _temporaryDirectory = value; }
+    public string TemporaryDirectory { get => _temporaryDirectory ??= GetDefaultTemporaryDirectory(); init => _temporaryDirectory = value; }
 
     #endregion Public 属性
 
