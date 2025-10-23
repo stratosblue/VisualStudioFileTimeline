@@ -215,7 +215,7 @@ public class TimelineToolWindowViewModel : NotifyPropertyChangedObject
                 await gitFileTimelineItem.LoadAsTempFileAsync(cancellationToken);
                 await VisualStudioShellUtilities.ShowFileTimelineComparisonWindowAsync(fileTimeline: fileTimeline,
                                                                                        comparisonFilePath: gitFileTimelineItem.FilePath,
-                                                                                       comparisonFileDescription: $"Commit: {gitFileTimelineItem.CommitInfo.CommitId}",
+                                                                                       comparisonFileDescription: $"Commit: [{gitFileTimelineItem.CommitInfo.CommitId.Substring(0, 7)}] {gitFileTimelineItem.Title}",
                                                                                        cancellationToken: cancellationToken);
             });
         }

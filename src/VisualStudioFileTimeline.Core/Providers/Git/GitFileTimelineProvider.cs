@@ -236,7 +236,8 @@ public class GitFileTimelineProvider(VisualStudioFileTimelineOptions options, IL
 
         using var process = Process.Start(processStartInfo);
 
-        var outputReadTask = process.StandardOutput.ReadToEndAsync();
+        using var memoryStream = new MemoryStream(8 * 1024);
+        var outputReadTask = process.StandardOutput.BaseStream.CopyToAsync(memoryStream, 4096, cancellationToken);
         outputReadTask.Wait(cancellationToken);
 
         using var localCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -255,7 +256,12 @@ public class GitFileTimelineProvider(VisualStudioFileTimelineOptions options, IL
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        var output = await outputReadTask;
+        await outputReadTask;
+        if (!memoryStream.TryGetBuffer(out var buffer))
+        {
+            throw new InvalidOperationException("Can not get git output data.");
+        }
+        var output = (encoding ?? Encoding.UTF8).GetString(buffer.Array, buffer.Offset, buffer.Count);
         var exitCode = process.ExitCode;
 
         if (exitCode != 0)
