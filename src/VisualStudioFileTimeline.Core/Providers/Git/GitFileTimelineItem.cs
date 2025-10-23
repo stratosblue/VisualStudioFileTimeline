@@ -36,7 +36,7 @@ public record GitFileTimelineItem(string SourceFilePath,
         {
             return;
         }
-        var content = await Provider.ExecuteGitCommandAsync(RootDirectory, $"show {CommitInfo.CommitId}:\"{RelativeFilePath}\"", cancellationToken);
+        var content = await Provider.ExecuteGitCommandAsync(RootDirectory, $"show --encoding=utf-8 {CommitInfo.CommitId}:\"{RelativeFilePath}\"", System.Text.Encoding.UTF8, cancellationToken);
         DirectoryUtil.Ensure(Provider.TemporaryDirectory);
         File.WriteAllText(FilePath, content);
     }

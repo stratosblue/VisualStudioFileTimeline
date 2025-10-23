@@ -41,7 +41,7 @@ public class GitFileTimelineProvider(VisualStudioFileTimelineOptions options, IL
         var filePath = resource.LocalPath.Replace('\\', '/');
 
         var fileDirectory = Path.GetDirectoryName(filePath);
-        var rootDirectory = await ExecuteGitCommandAsync(fileDirectory, "rev-parse --show-toplevel", cancellationToken);
+        var rootDirectory = await ExecuteGitCommandAsync(fileDirectory, "rev-parse --show-toplevel", null, cancellationToken);
 
         rootDirectory = rootDirectory.Trim();
 
@@ -133,6 +133,7 @@ public class GitFileTimelineProvider(VisualStudioFileTimelineOptions options, IL
 
         var gitOutput = await ExecuteGitCommandAsync(workingDirectory: rootDirectory,
                                                      command: $"--no-pager log --encoding=utf-8 --date=unix --follow --pretty=format:%H%n%an%n%ae%n%at%n%cn%n%ce%n%ct%n%B%n-~-~-~-%n --all \"{filePath}\"",
+                                                     encoding: Encoding.UTF8,
                                                      cancellationToken: cancellationToken);
 
         var matches = s_commitMatchRegex.Matches(gitOutput);
@@ -213,7 +214,8 @@ public class GitFileTimelineProvider(VisualStudioFileTimelineOptions options, IL
     internal static async Task<string> ExecuteGitCommandAsync(string gitPath,
                                                               string workingDirectory,
                                                               string command,
-                                                              CancellationToken cancellationToken)
+                                                              Encoding? encoding = null,
+                                                              CancellationToken cancellationToken = default)
     {
         var processStartInfo = new ProcessStartInfo(gitPath)
         {
@@ -225,6 +227,13 @@ public class GitFileTimelineProvider(VisualStudioFileTimelineOptions options, IL
             RedirectStandardInput = false,
             CreateNoWindow = true,
         };
+
+        if (encoding is not null)
+        {
+            processStartInfo.StandardOutputEncoding = encoding;
+            processStartInfo.StandardErrorEncoding = encoding;
+        }
+
         using var process = Process.Start(processStartInfo);
 
         var outputReadTask = process.StandardOutput.ReadToEndAsync();
@@ -273,12 +282,14 @@ public class GitFileTimelineProvider(VisualStudioFileTimelineOptions options, IL
     }
 
     internal Task<string> ExecuteGitCommandAsync(string workingDirectory,
-                                                         string command,
-                                                 CancellationToken cancellationToken)
+                                                 string command,
+                                                 Encoding? encoding = null,
+                                                 CancellationToken cancellationToken = default)
     {
         return ExecuteGitCommandAsync(gitPath: _gitExecutableFilePath!,
                                       workingDirectory: workingDirectory,
                                       command: command,
+                                      encoding: encoding,
                                       cancellationToken: cancellationToken);
     }
 
