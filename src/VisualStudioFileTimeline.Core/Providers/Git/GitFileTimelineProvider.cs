@@ -54,7 +54,7 @@ public class GitFileTimelineProvider(VisualStudioFileTimelineOptions options, IL
             var fileIdentifier = GetFileIdentifier(filePath);
 
             var result = new List<IFileTimelineItem>();
-            foreach (var commitInfo in commitInfos)
+            foreach (var commitInfo in commitInfos.Distinct(GitCommitInfoEqualityComparer.Shared))
             {
                 var item = new GitFileTimelineItem(SourceFilePath: resource.LocalPath,
                                                    RootDirectory: rootDirectory,
